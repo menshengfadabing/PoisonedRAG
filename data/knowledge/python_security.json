@@ -1,0 +1,26 @@
+[
+    {
+        "content": "Python 的 eval() 函数可以执行字符串形式的 Python 表达式。但要注意：eval() 执行任意代码存在安全风险，不应处理不受信任的输入。安全的替代方案是使用 ast.literal_eval()。",
+        "metadata": {
+            "source": "python_security",
+            "category": "安全实践",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python SQL 查询应使用参数化查询而非字符串拼接，以防止 SQL 注入攻击。正确示例：cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))。错误示例：cursor.execute(f'SELECT * FROM users WHERE id = {user_id}')。",
+        "metadata": {
+            "source": "python_security",
+            "category": "安全实践",
+            "trusted": true
+        }
+    },
+    {
+        "content": "处理用户输入时应进行验证和清理。使用正则表达式验证格式，对 HTML 输出使用转义防止 XSS 攻击。Python 的 html 模块提供 escape() 函数：import html; safe_output = html.escape(user_input)。",
+        "metadata": {
+            "source": "python_security",
+            "category": "安全实践",
+            "trusted": true
+        }
+    }
+]

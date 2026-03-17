@@ -1,0 +1,122 @@
+[
+    {
+        "content": "Python 是一种高级编程语言，以其简洁清晰的语法著称。Python 支持多种编程范式，包括面向对象、命令式、函数式和过程式编程。Python 的设计哲学强调代码的可读性和简洁性。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "基础概念",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 的 print() 函数用于将文本输出到控制台。基本用法：print('Hello, World!')。可以使用 sep 参数指定分隔符，end 参数指定结束字符。例如：print('A', 'B', sep='-', end='!') 输出 A-B!。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "基础语法",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 变量不需要声明类型，可以直接赋值。变量名区分大小写，建议使用小写字母和下划线。例如：name = 'Alice', age = 25, is_student = True。变量名不能以数字开头，不能使用 Python 关键字。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "基础语法",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 列表是一种有序、可变的数据结构。创建列表使用方括号：fruits = ['apple', 'banana', 'orange']。列表支持索引访问、切片、添加、删除等操作。常用方法：append(), insert(), remove(), pop(), sort()。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "数据结构",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 字典是一种键值对数据结构。创建字典使用花括号：person = {'name': 'Alice', 'age': 25}。访问值使用键：person['name']。常用方法：get(), keys(), values(), items(), update()。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "数据结构",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 函数使用 def 关键字定义。函数可以有参数和返回值。例如：def greet(name): return f'Hello, {name}!'。Python 支持默认参数、关键字参数和可变参数。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "函数",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 类使用 class 关键字定义。类包含属性和方法。构造方法 __init__ 在创建对象时自动调用。例如：class Dog: def __init__(self, name): self.name = name。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "面向对象",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 异常处理使用 try-except 语句。可以捕获特定异常类型，使用 finally 块执行清理代码。例如：try: result = 10 / 0 except ZeroDivisionError: print('Cannot divide by zero')。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "异常处理",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 文件操作使用 open() 函数。推荐使用 with 语句自动管理文件句柄。例如：with open('file.txt', 'r') as f: content = f.read()。常用模式：'r' 读取, 'w' 写入, 'a' 追加。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "文件操作",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 列表推导式是一种简洁的创建列表的方式。基本语法：[expression for item in iterable if condition]。例如：squares = [x**2 for x in range(10) if x % 2 == 0]。",
+        "metadata": {
+            "source": "python_basics",
+            "category": "高级特性",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 虚拟环境用于隔离项目依赖。使用 venv 模块创建：python -m venv myenv。激活环境：source myenv/bin/activate (Linux/Mac) 或 myenv\\Scripts\\activate (Windows)。",
+        "metadata": {
+            "source": "python_best_practices",
+            "category": "环境管理",
+            "trusted": true
+        }
+    },
+    {
+        "content": "pip 是 Python 的包管理工具。安装包：pip install package_name。列出已安装的包：pip list。导出依赖：pip freeze > requirements.txt。从文件安装：pip install -r requirements.txt。",
+        "metadata": {
+            "source": "python_best_practices",
+            "category": "包管理",
+            "trusted": true
+        }
+    },
+    {
+        "content": "PEP 8 是 Python 的编码风格指南。主要规范：使用 4 个空格缩进、每行不超过 79 个字符、函数和变量名使用小写和下划线、类名使用驼峰命名、操作符两侧加空格。",
+        "metadata": {
+            "source": "python_best_practices",
+            "category": "编码规范",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 类型注解可以提高代码可读性。函数参数和返回值可以添加类型提示：def greet(name: str) -> str: return f'Hello, {name}'。使用 typing 模块支持复杂类型。",
+        "metadata": {
+            "source": "python_best_practices",
+            "category": "类型注解",
+            "trusted": true
+        }
+    },
+    {
+        "content": "Python 装饰器是一种修改函数行为的机制。装饰器是一个接受函数并返回函数的函数。常见装饰器：@staticmethod, @classmethod, @property。可以自定义装饰器。",
+        "metadata": {
+            "source": "python_advanced",
+            "category": "装饰器",
+            "trusted": true
+        }
+    }
+]

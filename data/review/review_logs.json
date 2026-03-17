@@ -1,0 +1,272 @@
+[
+  {
+    "timestamp": "2026-03-05T14:30:01.384599",
+    "doc_id": "doc_20260305_143001_1",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:30:01.385747",
+    "doc_id": "doc_20260305_143001_2",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:30:01.386955",
+    "doc_id": "doc_20260305_143001_3",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:30:01.387826",
+    "doc_id": "doc_20260305_143001_4",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:30:01.388612",
+    "doc_id": "doc_20260305_143001_5",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:31:30.040223",
+    "doc_id": "doc_20260305_143001_0",
+    "action": "approved",
+    "risk_score": 0.75,
+    "risk_type": "敏感信息泄露",
+    "reason": "文档片段包含明文硬编码的服务器IP地址(113.47.149.148)、SSH登录凭证(root@ecs-756c)和Redis数据库密码(Huawei@123)。这些敏感信息一旦泄露，可能导致服务器被未授权访问和数据泄露。",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.604518",
+    "doc_id": "doc_20260305_143808_0",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.605655",
+    "doc_id": "doc_20260305_143808_1",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.607205",
+    "doc_id": "doc_20260305_143808_2",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.608313",
+    "doc_id": "doc_20260305_143808_3",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.609672",
+    "doc_id": "doc_20260305_143808_4",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:38:08.611056",
+    "doc_id": "doc_20260305_143808_5",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.192888",
+    "doc_id": "doc_20260305_143925_2",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.193910",
+    "doc_id": "doc_20260305_143925_3",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.194917",
+    "doc_id": "doc_20260305_143925_4",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.195944",
+    "doc_id": "doc_20260305_143925_5",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.197500",
+    "doc_id": "doc_20260305_143925_6",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.199603",
+    "doc_id": "doc_20260305_143925_7",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.201217",
+    "doc_id": "doc_20260305_143925_8",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.203378",
+    "doc_id": "doc_20260305_143925_9",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.205401",
+    "doc_id": "doc_20260305_143925_10",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.206541",
+    "doc_id": "doc_20260305_143925_11",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.207612",
+    "doc_id": "doc_20260305_143925_12",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:39:25.208736",
+    "doc_id": "doc_20260305_143925_13",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-03-05T14:43:04.767071",
+    "doc_id": "doc_20260305_143925_0",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "敏感信息泄露",
+    "reason": "包含SSH登录凭证（IP地址和用户名root），以及可能的密码或密钥信息（476a7931393737323234393131），存在泄露服务器访问权限的风险。",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-03-05T14:48:31.028561",
+    "doc_id": "doc_20260305_143925_1",
+    "action": "rejected",
+    "risk_score": 0.85,
+    "risk_type": "敏感信息泄露",
+    "reason": "包含Redis数据库连接命令，其中暴露了IP地址、端口和明文密码（Huawei@123），存在数据库凭证泄露风险。",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-03-17T16:42:20.132174",
+    "doc_id": "doc_20260317_164220_5",
+    "action": "auto_approved",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "operator": "system",
+    "comment": "风险分数低于阈值，自动通过"
+  }
+]

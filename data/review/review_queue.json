@@ -1,0 +1,322 @@
+[
+  {
+    "id": "doc_20260305_143001_0",
+    "content": "2a310d0a24360d0a415554480d0a24300d0a476a79313937373232343931310d0aroot@ecs-756c\r\n\r\nssh root@113.47.149.148\r\n\r\nsudo nginx -t\r\nsudo systemctl restart nginx\r\nsudo ss -tnlp | grep 6380\r\n\r\nredis-cli -h 113.47.149.148 -p 6380 -a Huawei@123 ping\r\n\r\nsudo apt remove --purge nodejs npm   # --purge 把 /etc 里配置也删\r\nsudo apt autoremove\r\n\r\n# 方法 1：直接解析默认路由\r\nexport win_ip=$(ip route show | grep -i default | awk '{print $3}')\r\nexport http_proxy=\"http://${win_ip}:7897\"\r\nexport https_proxy=\"http://${win_ip}:7897\"",
+    "risk_score": 0.75,
+    "risk_type": "敏感信息泄露",
+    "reason": "文档片段包含明文硬编码的服务器IP地址(113.47.149.148)、SSH登录凭证(root@ecs-756c)和Redis数据库密码(Huawei@123)。这些敏感信息一旦泄露，可能导致服务器被未授权访问和数据泄露。",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.383524",
+    "status": "approved"
+  },
+  {
+    "id": "doc_20260305_143001_1",
+    "content": "export https_proxy=\"http://${win_ip}:7897\"\r\necho \"代理已指向 $win_ip:7897\"\r\n\r\ncurl -x http://${win_ip}:7897 -I www.google.com\r\ncurl -x http://172.19.48.1:7897 -I www.google.com\r\ncurl -I www.google.com\r\n\r\ncat >> ~/.bashrc <<'EOF'\r\n# WSL2 全局代理\r\nexport host_ip=172.19.48.1\r\nexport proxy_port=7897\r\nexport http_proxy=\"http://${host_ip}:${proxy_port}\"\r\nexport https_proxy=\"http://${host_ip}:${proxy_port}\"\r\n# 可选：让 curl/wget 也走代理\r\nexport HTTP_PROXY=\"${http_proxy}\"\r\nexport HTTPS_PROXY=\"${https_proxy}\"\r\nEOF",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.383795",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143001_2",
+    "content": "export HTTPS_PROXY=\"${https_proxy}\"\r\nEOF\r\n\r\necho \"Acquire::http::Proxy \\\"http://${host_ip}:${proxy_port}\\\";\r\nAcquire::https::Proxy \\\"http://${host_ip}:${proxy_port}\\\";\" | \\\r\nsudo tee /etc/apt/apt.conf.d/95proxy\r\n\r\ncurl -I www.google.com          # 应该秒回 200，不再加 -x\r\nwget -O- https://www.google.com | head -n1\r\n\r\n# 1 先清掉旧 Nodesource list\r\nsudo rm -f /etc/apt/sources.list.d/nodesource.list\r\n\r\n# 2 用清华镜像（与官方目录结构 100 % 一致）",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.384768",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143001_3",
+    "content": "# 2 用清华镜像（与官方目录结构 100 % 一致）\r\necho \"deb https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\\r\nsudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n# 3 导入清华对应的 GPG 公钥（与官方相同）\r\ncurl -fsSL https://mirrors.tuna.tsinghua.edu.cn/nodesource/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nodesource.gpg\r\necho \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] \\\r\nhttps://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.385918",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143001_4",
+    "content": "sudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n\r\ncd /home/no_story/projects/dev-stack\r\n\r\ndocker compose up --build -d\r\n\r\n\r\nps aux | grep claude\r\nkill -9 <PID>\r\n\r\n lsof -ti:8080\r\n \r\n mvn archetype:generate \\\r\n -DarchetypeGroupId=org.apache.maven.archetypes \\\r\n -DarchetypeArtifactId=maven-archetype-quickstart \\\r\n -DarchetypeVersion=1.5 \\\r\n -DgroupId=com.example \\\r\n -DartifactId=seckill-backend \\\r\n -Dversion=1.0-SNAPSHOT \\\r\n -Dpackage=com.example \\\r\n -DinteractiveMode=false \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.387121",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143001_5",
+    "content": "-DinteractiveMode=false \\\r\n -Dmaven.compiler.release=25",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:30:01.388004",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_0",
+    "content": "mkdir <project>\r\n\r\ncd <project>\r\n\r\nuv venv --python 3.12.12 <name>\r\n\r\nuv init --name <name>",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.600247",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_1",
+    "content": "source .venv/bin/activate\r\n\r\nsource test-py/.venv/bin/activate\r\n\r\nuv cache clean -q\r\n\r\nuv sync",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.604785",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_2",
+    "content": "uv sync\r\n\r\nuv pip install torch torchvision \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.605868",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_3",
+    "content": "--index-url https://download.pytorch.org/whl/cu130\r\n\t\r\n# 当前 shell 生效",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.607437",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_4",
+    "content": "# 当前 shell 生效\r\nexport UV_MAX_CONCURRENT_DOWNLOADS=4   # 默认 50 → 4",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.608537",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143808_5",
+    "content": "export UV_HTTP_TIMEOUT=600             # 默认 30 s → 10 min\r\nuv sync",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "uv相关.txt",
+    "created_at": "2026-03-05T14:38:08.609880",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_0",
+    "content": "2a310d0a24360d0a415554480d0a24300d0a476a79313937373232343931310d0aroot@ecs-756c\r\n\r\nssh root@113.47.149.148\r\n\r\nsudo nginx -t\r\nsudo systemctl restart nginx\r\nsudo ss -tnlp | grep 6380",
+    "risk_score": 0.75,
+    "risk_type": "敏感信息泄露",
+    "reason": "包含SSH登录凭证（IP地址和用户名root），以及可能的密码或密钥信息（476a7931393737323234393131），存在泄露服务器访问权限的风险。",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.187060",
+    "status": "rejected"
+  },
+  {
+    "id": "doc_20260305_143925_1",
+    "content": "redis-cli -h 113.47.149.148 -p 6380 -a Huawei@123 ping\r\n\r\nsudo apt remove --purge nodejs npm   # --purge 把 /etc 里配置也删\r\nsudo apt autoremove\r\n\r\n# 方法 1：直接解析默认路由",
+    "risk_score": 0.85,
+    "risk_type": "敏感信息泄露",
+    "reason": "包含Redis数据库连接命令，其中暴露了IP地址、端口和明文密码（Huawei@123），存在数据库凭证泄露风险。",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.187809",
+    "status": "rejected"
+  },
+  {
+    "id": "doc_20260305_143925_2",
+    "content": "# 方法 1：直接解析默认路由\r\nexport win_ip=$(ip route show | grep -i default | awk '{print $3}')\r\nexport http_proxy=\"http://${win_ip}:7897\"\r\nexport https_proxy=\"http://${win_ip}:7897\"",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.191201",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_3",
+    "content": "echo \"代理已指向 $win_ip:7897\"\r\n\r\ncurl -x http://${win_ip}:7897 -I www.google.com\r\ncurl -x http://172.19.48.1:7897 -I www.google.com\r\ncurl -I www.google.com\r\n\r\ncat >> ~/.bashrc <<'EOF'\r\n# WSL2 全局代理",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.193189",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_4",
+    "content": "# WSL2 全局代理\r\nexport host_ip=172.19.48.1\r\nexport proxy_port=7897\r\nexport http_proxy=\"http://${host_ip}:${proxy_port}\"\r\nexport https_proxy=\"http://${host_ip}:${proxy_port}\"\r\n# 可选：让 curl/wget 也走代理",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.194182",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_5",
+    "content": "export HTTP_PROXY=\"${http_proxy}\"\r\nexport HTTPS_PROXY=\"${https_proxy}\"\r\nEOF\r\n\r\necho \"Acquire::http::Proxy \\\"http://${host_ip}:${proxy_port}\\\";",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.195203",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_6",
+    "content": "Acquire::https::Proxy \\\"http://${host_ip}:${proxy_port}\\\";\" | \\\r\nsudo tee /etc/apt/apt.conf.d/95proxy\r\n\r\ncurl -I www.google.com          # 应该秒回 200，不再加 -x\r\nwget -O- https://www.google.com | head -n1",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.196284",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_7",
+    "content": "# 1 先清掉旧 Nodesource list\r\nsudo rm -f /etc/apt/sources.list.d/nodesource.list\r\n\r\n# 2 用清华镜像（与官方目录结构 100 % 一致）\r\necho \"deb https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.198166",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_8",
+    "content": "sudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n# 3 导入清华对应的 GPG 公钥（与官方相同）",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.200078",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_9",
+    "content": "curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/nodesource/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nodesource.gpg\r\necho \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.201562",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_10",
+    "content": "https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\\r\nsudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n\r\ncd /home/no_story/projects/dev-stack",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.204112",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_11",
+    "content": "docker compose up --build -d\r\n\r\n\r\nps aux | grep claude\r\nkill -9 <PID>\r\n\r\n lsof -ti:8080\r\n \r\n mvn archetype:generate \\\r\n -DarchetypeGroupId=org.apache.maven.archetypes \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.205739",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_12",
+    "content": "-DarchetypeArtifactId=maven-archetype-quickstart \\\r\n -DarchetypeVersion=1.5 \\\r\n -DgroupId=com.example \\\r\n -DartifactId=seckill-backend \\\r\n -Dversion=1.0-SNAPSHOT \\\r\n -Dpackage=com.example \\",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.206828",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260305_143925_13",
+    "content": "-DinteractiveMode=false \\\r\n -Dmaven.compiler.release=25",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-05T14:39:25.207877",
+    "status": "auto_approved"
+  },
+  {
+    "id": "doc_20260317_164220_0",
+    "content": "2a310d0a24360d0a415554480d0a24300d0a476a79313937373232343931310d0aroot@ecs-756c\r\n\r\nssh root@113.47.149.148\r\n\r\nsudo nginx -t\r\nsudo systemctl restart nginx\r\nsudo ss -tnlp | grep 6380\r\n\r\nredis-cli -h 113.47.149.148 -p 6380 -a Huawei@123 ping\r\n\r\nsudo apt remove --purge nodejs npm   # --purge 把 /etc 里配置也删\r\nsudo apt autoremove\r\n\r\n# 方法 1：直接解析默认路由\r\nexport win_ip=$(ip route show | grep -i default | awk '{print $3}')\r\nexport http_proxy=\"http://${win_ip}:7897\"\r\nexport https_proxy=\"http://${win_ip}:7897\"",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.125602",
+    "status": "pending"
+  },
+  {
+    "id": "doc_20260317_164220_1",
+    "content": "export http_proxy=\"http://${win_ip}:7897\"\r\nexport https_proxy=\"http://${win_ip}:7897\"\r\necho \"代理已指向 $win_ip:7897\"\r\n\r\ncurl -x http://${win_ip}:7897 -I www.google.com\r\ncurl -x http://172.19.48.1:7897 -I www.google.com\r\ncurl -I www.google.com\r\n\r\ncat >> ~/.bashrc <<'EOF'\r\n# WSL2 全局代理\r\nexport host_ip=172.19.48.1\r\nexport proxy_port=7897\r\nexport http_proxy=\"http://${host_ip}:${proxy_port}\"\r\nexport https_proxy=\"http://${host_ip}:${proxy_port}\"\r\n# 可选：让 curl/wget 也走代理\r\nexport HTTP_PROXY=\"${http_proxy}\"",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: http://172.19.48.1:7897",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.127791",
+    "status": "pending"
+  },
+  {
+    "id": "doc_20260317_164220_2",
+    "content": "# 可选：让 curl/wget 也走代理\r\nexport HTTP_PROXY=\"${http_proxy}\"\r\nexport HTTPS_PROXY=\"${https_proxy}\"\r\nEOF\r\n\r\necho \"Acquire::http::Proxy \\\"http://${host_ip}:${proxy_port}\\\";\r\nAcquire::https::Proxy \\\"http://${host_ip}:${proxy_port}\\\";\" | \\\r\nsudo tee /etc/apt/apt.conf.d/95proxy\r\n\r\ncurl -I www.google.com          # 应该秒回 200，不再加 -x\r\nwget -O- https://www.google.com | head -n1\r\n\r\n# 1 先清掉旧 Nodesource list\r\nsudo rm -f /etc/apt/sources.list.d/nodesource.list\r\n\r\n# 2 用清华镜像（与官方目录结构 100 % 一致）",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: https://www.google.com",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.128960",
+    "status": "pending"
+  },
+  {
+    "id": "doc_20260317_164220_3",
+    "content": "sudo rm -f /etc/apt/sources.list.d/nodesource.list\r\n\r\n# 2 用清华镜像（与官方目录结构 100 % 一致）\r\necho \"deb https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\\r\nsudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n# 3 导入清华对应的 GPG 公钥（与官方相同）\r\ncurl -fsSL https://mirrors.tuna.tsinghua.edu.cn/nodesource/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nodesource.gpg\r\necho \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] \\",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de..., 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/gp...",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.129716",
+    "status": "pending"
+  },
+  {
+    "id": "doc_20260317_164220_4",
+    "content": "echo \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] \\\r\nhttps://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\\r\nsudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list\r\n\r\n\r\ncd /home/no_story/projects/dev-stack\r\n\r\ndocker compose up --build -d\r\n\r\n\r\nps aux | grep claude\r\nkill -9 <PID>\r\n\r\n lsof -ti:8080\r\n \r\n mvn archetype:generate \\\r\n -DarchetypeGroupId=org.apache.maven.archetypes \\\r\n -DarchetypeArtifactId=maven-archetype-quickstart \\\r\n -DarchetypeVersion=1.5 \\",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de...",
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.130271",
+    "status": "pending"
+  },
+  {
+    "id": "doc_20260317_164220_5",
+    "content": "-DarchetypeArtifactId=maven-archetype-quickstart \\\r\n -DarchetypeVersion=1.5 \\\r\n -DgroupId=com.example \\\r\n -DartifactId=seckill-backend \\\r\n -Dversion=1.0-SNAPSHOT \\\r\n -Dpackage=com.example \\\r\n -DinteractiveMode=false \\\r\n -Dmaven.compiler.release=25",
+    "risk_score": 0.0,
+    "risk_type": null,
+    "reason": null,
+    "source": "linux相关.txt",
+    "created_at": "2026-03-17T16:42:20.130874",
+    "status": "auto_approved"
+  }
+]
