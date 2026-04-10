@@ -30,6 +30,7 @@ class KnowledgeBase:
         vectorstore: Optional[VectorStore] = None,
         data_dir: Optional[str] = None,
         embedding_model: Optional[EmbeddingModel] = None,
+        reviewer: Optional[Any] = None,
     ):
         """
         初始化知识库
@@ -38,10 +39,12 @@ class KnowledgeBase:
             vectorstore: 向量存储实例
             data_dir: 知识库数据目录
             embedding_model: 嵌入模型实例
+            reviewer: 文档审查器实例（可选），设置后文档入库前必须通过审查
         """
         self.vectorstore = vectorstore
         self.embedding_model = embedding_model or get_embedding_model()
         self.data_dir = data_dir or self._get_default_data_dir()
+        self.reviewer = reviewer  # 可选的审查器
 
         # 文档元数据
         self._documents: List[Document] = []
@@ -264,7 +267,14 @@ class KnowledgeBase:
 
         Returns:
             文档 ID 列表
+
+        Raises:
+            ValueError: 如果配置了审查器但文档未通过审查
         """
+        # 如果设置了审查器，入库前进行安全检查
+        if self.reviewer:
+            documents = self._review_documents(documents)
+
         # 标记为知识库文档
         for doc in documents:
             doc.metadata["type"] = "knowledge"
@@ -285,6 +295,9 @@ class KnowledgeBase:
 
         Returns:
             索引的文档数量
+
+        Raises:
+            ValueError: 如果配置了审查器但文档未通过审查
         """
         if not self.vectorstore:
             raise ValueError("未设置向量存储")
@@ -293,8 +306,56 @@ class KnowledgeBase:
         if not docs:
             return 0
 
+        # 如果设置了审查器，入库前进行安全检查
+        if self.reviewer and documents is not None:
+            docs = self._review_documents(documents)
+
         self.vectorstore.add_documents(docs)
         return len(docs)
+
+    def _review_documents(self, documents: List[Document]) -> List[Document]:
+        """
+        对文档进行安全审查
+
+        Args:
+            documents: 待审查的文档列表
+
+        Returns:
+            通过审查的文档列表
+
+        Raises:
+            ValueError: 如果有文档未通过审查
+        """
+        if not self.reviewer:
+            return documents
+
+        risky_docs = []
+        safe_docs = []
+
+        for doc in documents:
+            result = self.reviewer.quick_review(doc.page_content)
+            if result and result.results:
+                chunk_result = result.results[0]
+                if chunk_result.is_safe:
+                    safe_docs.append(doc)
+                else:
+                    risky_docs.append(
+                        f"来源={doc.metadata.get('source', '未知')}, "
+                        f"风险={chunk_result.risk_type or '未知'}, "
+                        f"分数={chunk_result.risk_score:.2f}, "
+                        f"原因={chunk_result.reason or '无'}"
+                    )
+            else:
+                # 审查失败，保守起见拒绝
+                risky_docs.append(f"来源={doc.metadata.get('source', '未知')}, 审查失败")
+
+        if risky_docs:
+            details = "\n".join(f"  - {d}" for d in risky_docs)
+            raise ValueError(
+                f"{len(risky_docs)} 篇文档未通过安全审查，已拒绝入库：\n{details}"
+            )
+
+        return safe_docs
 
     def clear(self):
         """清空知识库"""

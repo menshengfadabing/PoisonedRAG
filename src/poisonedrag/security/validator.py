@@ -70,14 +70,23 @@ class ResponseValidator:
         (r"disregard\s+(all\s+)?(previous|above)", "检测到绕过指令"),
     ]
 
-    # 安全关键词（响应中不应出现）
+    # 安全关键词（响应中不应出现）—— 中英文
     UNSAFE_KEYWORDS = [
+        # 中文
         "执行此命令",
         "运行以下代码",
         "你的密码是",
         "你的密钥是",
         "银行账户",
         "信用卡号",
+        # 英文
+        "execute this command",
+        "run the following code",
+        "your password is",
+        "your api key is",
+        "your secret key is",
+        "ignore all previous instructions",
+        "disregard previous instructions",
     ]
 
     def __init__(

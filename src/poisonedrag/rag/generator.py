@@ -150,6 +150,25 @@ class Generator:
                 "confidence": validation_result.confidence,
             }
 
+        def safe_fallback_node(state: RAGState) -> Dict[str, Any]:
+            """安全兜底节点：当校验失败时替换响应"""
+            fallback = (
+                "⚠️ 检测到该回答可能存在安全风险或事实不一致，已为您拦截原始响应。"
+                "建议结合其他可靠来源验证该问题的答案。"
+            )
+            return {
+                "response": fallback,
+                "warnings": state.get("warnings", []) + [
+                    "原始响应未通过安全校验，已替换为兜底提示。"
+                ],
+            }
+
+        # 条件路由：校验失败时走安全兜底
+        def route_after_validate(state: RAGState) -> str:
+            if state.get("is_safe", True):
+                return "end"
+            return "block"
+
         # 构建图
         workflow = StateGraph(RAGState)
 
@@ -157,12 +176,18 @@ class Generator:
         workflow.add_node("retrieve", retrieve_node)
         workflow.add_node("generate", generate_node)
         workflow.add_node("validate", validate_node)
+        workflow.add_node("safe_fallback", safe_fallback_node)
 
         # 定义边
         workflow.set_entry_point("retrieve")
         workflow.add_edge("retrieve", "generate")
         workflow.add_edge("generate", "validate")
-        workflow.add_edge("validate", END)
+        workflow.add_conditional_edges(
+            "validate",
+            route_after_validate,
+            {"end": END, "block": "safe_fallback"},
+        )
+        workflow.add_edge("safe_fallback", END)
 
         return workflow.compile()
 
@@ -228,7 +253,10 @@ class Generator:
         history: Optional[List[Dict[str, str]]] = None,
     ):
         """
-        流式生成（使用 LLM 的流式输出）
+        流式生成（⚠️ 不经过安全校验，仅用于受信任场景）
+
+        ⚠️ 安全警告：此方法跳过 validate_node，不安全的响应会被直接输出。
+        如需安全的流式输出，请使用 `stream_safe()` 方法。
 
         Args:
             query: 用户查询
@@ -256,6 +284,43 @@ class Generator:
         # 流式调用 LLM
         for chunk in self.llm.llm.stream(messages):
             yield chunk.content
+
+    def stream_safe(
+        self,
+        query: str,
+        history: Optional[List[Dict[str, str]]] = None,
+    ):
+        """
+        安全的流式生成：先非流式校验，通过后在流式输出
+
+        流程：
+        1. 非流式生成 + 安全校验
+        2. 若校验通过，流式输出完整响应
+        3. 若校验失败，流式输出安全警告
+
+        Args:
+            query: 用户查询
+            history: 对话历史
+
+        Yields:
+            生成的文本片段（带安全保证）
+        """
+        # Step 1: 非流式生成 + 校验
+        result = self.generate(query, history)
+
+        # Step 2: 根据校验结果决定是否流式输出
+        if result.is_safe:
+            # 安全：逐字流式输出
+            for char in result.response:
+                yield char
+        else:
+            # 不安全：流式输出安全警告
+            warning = (
+                "⚠️ 该回答未通过安全校验，原始响应已被拦截。"
+                "建议结合其他可靠来源验证答案。"
+            )
+            for char in warning:
+                yield char
 
 
 def create_generator(

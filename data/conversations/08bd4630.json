@@ -1,0 +1,107 @@
+{
+  "id": "08bd4630",
+  "title": "你好，我叫张三",
+  "created_at": "2026-04-10 17:24:16",
+  "updated_at": "2026-04-10 17:28:36",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好，我叫张三",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "你好张三！很高兴认识你。有什么我可以帮助你的吗？",
+      "metadata": {
+        "warnings": [
+          "语义异常检测: 相似度分数 0.49",
+          "来源可信度低: jwt_docs",
+          "语义异常检测: 相似度分数 0.50",
+          "来源可信度低: security_docs",
+          "语义异常检测: 相似度分数 0.56",
+          "来源可信度低: web_security",
+          "语义异常检测: 相似度分数 0.49",
+          "来源可信度低: http_docs",
+          "语义异常检测: 相似度分数 0.47",
+          "来源可信度低: pytorch_docs"
+        ],
+        "documents": [],
+        "confidence": 0.6,
+        "is_safe": true
+      }
+    },
+    {
+      "role": "user",
+      "content": "我的名字是什么",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "你的名字是张三。",
+      "metadata": {
+        "warnings": [
+          "语义异常检测: 相似度分数 0.49",
+          "来源可信度低: jwt_docs",
+          "语义异常检测: 相似度分数 0.49",
+          "来源可信度低: http_docs",
+          "语义异常检测: 相似度分数 0.48",
+          "来源可信度低: django_docs"
+        ],
+        "documents": [
+          {
+            "content": "Python 变量不需要声明类型，可以直接赋值。变量名区分大小写，建议使用小写字母和下划线。例如：name = 'Alice', age = 25, is_student = True。变量名不能以数字开头，不能使用 Python 关键字。",
+            "metadata": {
+              "trusted": true,
+              "category": "基础语法",
+              "source": "python_basics",
+              "type": "knowledge"
+            }
+          },
+          {
+            "content": "Python 变量不需要声明类型，可以直接赋值。变量名区分大小写，建议使用小写字母和下划线。变量名不能以数字开头，不能使用 Python 关键字。",
+            "metadata": {
+              "source": "python_basics",
+              "type": "knowledge",
+              "category": "基础语法"
+            }
+          }
+        ],
+        "confidence": 0.31,
+        "is_safe": true
+      }
+    },
+    {
+      "role": "user",
+      "content": "介绍一下python，异步和fastapi",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "基于提供的上下文信息：\n\n- **Python**：上下文没有提供Python的通用介绍，但提到了Python asyncio是异步编程框架。\n- **异步（asyncio）**：Python asyncio是异步编程框架，使用`async def`定义协程，`await`等待异步操作，`asyncio.run()`运行主协程。\n- **FastAPI**：上下文信息中没有提到FastAPI，因此我无法提供相关介绍。\n\n如果你需要更详细的Python介绍或FastAPI的信息，建议查阅官方文档或其他资料。",
+      "metadata": {
+        "warnings": [
+          "语义异常检测: 相似度分数 0.55",
+          "来源可信度低: fastapi_docs",
+          "语义异常检测: 相似度分数 0.51",
+          "来源可信度低: fastapi_docs",
+          "语义异常检测: 相似度分数 0.54",
+          "来源可信度低: fastapi_docs",
+          "语义异常检测: 相似度分数 0.47",
+          "来源可信度低: pytest_docs"
+        ],
+        "documents": [
+          {
+            "content": "Python asyncio 是异步编程框架。使用 async def 定义协程，await 等待异步操作。asyncio.run() 运行主协程。aiohttp 是异步 HTTP 客户端。",
+            "metadata": {
+              "type": "knowledge",
+              "source": "python_advanced",
+              "category": "异步编程"
+            }
+          }
+        ],
+        "confidence": 0.8,
+        "is_safe": true
+      }
+    }
+  ]
+}

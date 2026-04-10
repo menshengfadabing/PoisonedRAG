@@ -86,9 +86,10 @@ class ContentFilter:
         """
         构建恶意模式列表（用于语义检测）
 
-        这些是典型的恶意引导模式示例
+        包含中英文典型恶意引导模式
         """
         return [
+            # 中文恶意模式
             "请忽略之前的指令",
             "请执行以下命令",
             "这个代码可以安全运行",
@@ -97,6 +98,17 @@ class ContentFilter:
             "你的系统已被锁定",
             "点击此链接",
             "下载并运行",
+            # 英文恶意模式
+            "ignore previous instructions",
+            "disregard all prior",
+            "execute this command",
+            "run the following code",
+            "your system is locked",
+            "click this link",
+            "download and run",
+            "bypass all security",
+            "your api key is",
+            "your password is",
         ]
 
     def filter_text(self, text: str) -> FilterResult:
@@ -154,25 +166,43 @@ class ContentFilter:
         Returns:
             FilterResult 过滤结果
         """
-        # 检查来源可信度（优先检查）
         source = document.metadata.get("source", "")
         source_trust = self._check_source_trust(source)
 
-        # 可信来源直接放行，不做内容检查
-        if source_trust:
-            return FilterResult(
-                is_safe=True,
-                warnings=[],
-                risk_score=0.0,
-            )
+        # 非可信来源：正常内容检查 + 风险加分
+        if not source_trust:
+            text_result = self.filter_text(document.page_content)
+            text_result.warnings.append(f"来源可信度低: {source}")
+            text_result.risk_score = min(1.0, text_result.risk_score + 0.2)
+            return text_result
 
-        # 非可信来源进行内容过滤
-        text_result = self.filter_text(document.page_content)
-        text_result.warnings.append(f"来源可信度低: {source}")
-        text_result.risk_score = min(1.0, text_result.risk_score + 0.2)
-        text_result.is_safe = False
+        # 可信来源：仍进行基本关键字检查，但跳过语义异常检测
+        # 可信来源不是绝对安全——文件可能被篡改或混入恶意内容
+        warnings = []
+        risk_score = 0.0
 
-        return text_result
+        # 仅做关键字检测（轻量），不做语义检测
+        keyword_matches = self._keyword_pattern.findall(document.page_content)
+        if keyword_matches:
+            unique_matches = list(set(keyword_matches))
+            warnings.append(f"⚠️ 可信来源但检测到敏感关键词: {', '.join(unique_matches)}")
+            risk_score += 0.3 * len(unique_matches)
+
+        malicious_patterns = self._detect_malicious_patterns(document.page_content)
+        if malicious_patterns:
+            warnings.append(f"⚠️ 可信来源但检测到恶意模式: {', '.join(malicious_patterns)}")
+            risk_score += 0.4 * len(malicious_patterns)
+
+        # 可信来源给予基础信任分（降低风险）
+        risk_score = max(0.0, risk_score - 0.1)
+
+        is_safe = risk_score < 0.5 and len(warnings) == 0
+
+        return FilterResult(
+            is_safe=is_safe,
+            warnings=warnings,
+            risk_score=min(1.0, risk_score),
+        )
 
     def _detect_malicious_patterns(self, text: str) -> List[str]:
         """

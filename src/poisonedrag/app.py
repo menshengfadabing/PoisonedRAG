@@ -95,6 +95,18 @@ class ChatApp:
         return self._components["vectorstore"]
 
     @property
+    def llm(self):
+        return self._components["llm"]
+
+    @property
+    def retriever(self):
+        return self._components["retriever"]
+
+    @property
+    def response_validator(self):
+        return self._components["response_validator"]
+
+    @property
     def generator(self):
         return self._components["generator"]
 
@@ -201,75 +213,117 @@ def render_chat_message(message: Dict[str, Any]):
 
 
 def handle_user_input(app: ChatApp, prompt: str):
-    """处理用户输入"""
+    """处理用户输入（真实流式输出 + 安全校验）"""
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("思考中..."):
-            try:
-                # 构建对话历史（排除当前用户消息）
-                history = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[:-1]
-                ]
+        try:
+            # 构建对话历史（排除当前用户消息）
+            history = [
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages[:-1]
+            ]
 
-                result = app.generator.generate(prompt, history=history)
-                st.markdown(result.response)
+            # 真实流式生成（先检索 + 生成 + 校验，校验通过后流式输出）
+            # 1. 检索
+            result = app.retriever.retrieve(prompt)
+            context = app.retriever._format_documents(result.documents)
 
-                metadata = {
-                    "warnings": result.warnings,
-                    "documents": [
-                        {"content": d.page_content, "metadata": d.metadata}
-                        for d in result.documents
-                    ],
-                    "confidence": result.confidence,
-                    "is_safe": result.is_safe,
-                }
+            # 2. 构建消息
+            system_content = app.generator.system_prompt.format(context=context)
+            messages = app.llm.create_messages(
+                query=prompt,
+                system_prompt=system_content,
+                history=history,
+            )
 
-                if result.warnings:
-                    with st.expander("⚠️ 安全警告", expanded=False):
-                        for w in result.warnings:
-                            st.warning(w)
-                if result.documents:
-                    with st.expander("📄 检索文档", expanded=False):
-                        for i, doc in enumerate(result.documents, 1):
-                            st.markdown(f"**文档 {i}**")
-                            st.text(doc.page_content[:200] + "...")
-                confidence = result.confidence
-                color = "green" if confidence > 0.7 else "orange" if confidence > 0.4 else "red"
-                st.markdown(f"置信度: :{color}[{confidence:.2f}]")
+            # 3. 真实流式调用 LLM
+            display = st.empty()
+            full_response = ""
+            for chunk in app.llm.llm.stream(messages):
+                content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                if content:
+                    full_response += content
+                    display.markdown(full_response)
 
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": result.response,
-                    "metadata": metadata,
-                }
-                st.session_state.messages.append(assistant_msg)
+            # 4. 安全校验（流式完成后）
+            validation_result = None
+            if app.response_validator:
+                validation_result = app.response_validator.validate(
+                    query=prompt,
+                    response=full_response,
+                    documents=result.documents,
+                )
 
-                # 持久化到本地文件
-                if st.session_state.current_session_id:
-                    add_message(st.session_state.current_session_id, "user", prompt)
-                    add_message(
-                        st.session_state.current_session_id,
-                        "assistant",
-                        result.response,
-                        metadata,
-                    )
-                else:
-                    sid = create_session(prompt[:30])
-                    st.session_state.current_session_id = sid
-                    add_message(sid, "user", prompt)
-                    add_message(sid, "assistant", result.response, metadata)
+            # 5. 如果校验失败，替换为安全警告
+            is_safe = True
+            warnings = list(result.warnings)
+            confidence = 1.0
+            if validation_result and not validation_result.is_safe:
+                full_response = (
+                    "⚠️ 检测到该回答可能存在安全风险或事实不一致，已为您拦截原始响应。"
+                    "建议结合其他可靠来源验证该问题的答案。"
+                )
+                display.markdown(full_response)
+                is_safe = False
+                warnings.extend(validation_result.warnings)
+                confidence = validation_result.confidence
+            elif validation_result:
+                confidence = validation_result.confidence
 
-            except Exception as e:
-                st.error(f"生成失败: {e}")
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": f"抱歉，发生了错误: {e}",
-                })
+            metadata = {
+                "warnings": warnings,
+                "documents": [
+                    {"content": d.page_content, "metadata": d.metadata}
+                    for d in result.documents
+                ],
+                "confidence": confidence,
+                "is_safe": is_safe,
+            }
+
+            if warnings:
+                with st.expander("⚠️ 安全警告", expanded=False):
+                    for w in warnings:
+                        st.warning(w)
+            if result.documents:
+                with st.expander("📄 检索文档", expanded=False):
+                    for i, doc in enumerate(result.documents, 1):
+                        st.markdown(f"**文档 {i}**")
+                        st.text(doc.page_content[:200] + "...")
+            color = "green" if confidence > 0.7 else "orange" if confidence > 0.4 else "red"
+            st.markdown(f"置信度: :{color}[{confidence:.2f}]")
+
+            assistant_msg = {
+                "role": "assistant",
+                "content": full_response,
+                "metadata": metadata,
+            }
+            st.session_state.messages.append(assistant_msg)
+
+            # 持久化到本地文件
+            if st.session_state.current_session_id:
+                add_message(st.session_state.current_session_id, "user", prompt)
+                add_message(
+                    st.session_state.current_session_id,
+                    "assistant",
+                    full_response,
+                    metadata,
+                )
+            else:
+                sid = create_session(prompt[:30])
+                st.session_state.current_session_id = sid
+                add_message(sid, "user", prompt)
+                add_message(sid, "assistant", full_response, metadata)
+
+        except Exception as e:
+            st.error(f"生成失败: {e}")
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": f"抱歉，发生了错误: {e}",
+            })
 
 
 # ============================================================

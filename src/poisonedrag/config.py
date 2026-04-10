@@ -195,17 +195,24 @@ class Config:
     enable_content_filter: bool = True
     enable_response_validator: bool = True
 
-    # 关键词过滤配置 - 敏感词列表
+    # 关键词过滤配置 - 敏感词列表（中英文）
     sensitive_keywords: list = field(default_factory=lambda: [
-        # 危险操作关键词
+        # 危险操作关键词（中文）
         "rm -rf", "del /", "format", "mkfs",
         "DROP TABLE", "DELETE FROM", "TRUNCATE",
-        # 恶意引导关键词
-        "ignore previous", "disregard", "bypass",
-        # 敏感信息关键词
-        "password", "secret key", "api key", "token",
-        # 其他危险指令
+        # 恶意引导关键词（中文）
+        "忽略之前的", "忽视之前", "绕过", "请执行",
+        # 敏感信息关键词（中文）
+        "密码是", "密钥是", "令牌是", "api key",
+        # 危险操作关键词（英文）
         "eval(", "exec(", "system(", "subprocess",
+        "os.system(", "subprocess.call",
+        # 恶意引导关键词（英文）
+        "ignore previous", "disregard", "bypass",
+        "execute this", "run the following",
+        # 敏感信息关键词（英文）
+        "password is", "api_key is", "secret key is",
+        "your token is", "your credential",
     ])
 
     # 语义异常检测阈值
