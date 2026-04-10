@@ -156,7 +156,7 @@ def get_review_llm() -> LLMModel:
     config = get_config()
     return LLMModel(
         api_key=config.review_api_key,
-        base_url=config.deepseek_base_url,
+        base_url=config.review_base_url,
         model=config.review_model,
         temperature=0.1,  # 低温度，更确定的输出
         max_tokens=4096,  # 更大的输出限制（批量审查需要）

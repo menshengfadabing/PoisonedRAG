@@ -6,9 +6,16 @@
 """
 
 import os
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
+
+from dotenv import load_dotenv
+
+# 加载项目根目录的 .env 文件
+_project_root = Path(__file__).resolve().parent.parent.parent
+load_dotenv(_project_root / ".env")
 
 
 class ProtectionMode(Enum):
@@ -60,18 +67,27 @@ class Config:
     包含所有系统配置项，支持从环境变量加载配置。
     """
 
-    # DeepSeek API 配置
+    # LLM API 配置（支持 DeepSeek / Volcengine Ark 等 OpenAI 兼容接口）
     deepseek_api_key: str = field(
         default_factory=lambda: os.getenv("DEEPSEEK_API_KEY", "")
     )
-    deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
-
-    # 文档审查专用 API 配置（使用独立的 API Key）
-    review_api_key: str = field(
-        default_factory=lambda: os.getenv("DEEPSEEK_REVIEW_API_KEY", "")
+    deepseek_base_url: str = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
     )
-    review_model: str = "deepseek-chat"
+    deepseek_model: str = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    )
+
+    # 文档审查专用 API 配置（使用独立的 API Key，未设置时复用主 Key）
+    review_api_key: str = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_REVIEW_API_KEY", "") or os.getenv("DEEPSEEK_API_KEY", "")
+    )
+    review_base_url: str = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
+    )
+    review_model: str = field(
+        default_factory=lambda: os.getenv("DEEPSEEK_REVIEW_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-chat"))
+    )
     review_risk_threshold: float = 0.5  # 风险阈值
 
     # ============================================================
@@ -102,7 +118,22 @@ class Config:
     # --- 功能开关 ---
     review_dynamic_batch: bool = True   # 是否启用动态批次计算
 
-    # Ollama 嵌入模型配置
+    # ============================================================
+    # 嵌入模型配置（支持多种 Provider：dashscope / ollama）
+    # ============================================================
+
+    # Provider 选择：dashscope（API）或 ollama（本地）
+    embedding_provider: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "dashscope")
+    )
+
+    # DashScope API 配置（阿里云）
+    dashscope_api_key: str = field(
+        default_factory=lambda: os.getenv("DASH_SCOPE_API_KEY", "")
+    )
+    dashscope_embedding_model: str = "text-embedding-v3"  # 推荐小模型，支持 50+ 语言，可调维度
+
+    # Ollama 嵌入模型配置（本地）
     ollama_base_url: str = field(
         default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )
@@ -343,8 +374,11 @@ class Config:
     def get_embedding_config(self) -> dict:
         """获取嵌入模型配置字典"""
         return {
-            "base_url": self.ollama_base_url,
-            "model": self.ollama_embedding_model,
+            "provider": self.embedding_provider,
+            "dashscope_api_key": self.dashscope_api_key,
+            "dashscope_model": self.dashscope_embedding_model,
+            "ollama_base_url": self.ollama_base_url,
+            "ollama_model": self.ollama_embedding_model,
         }
 
     def get_vectorstore_config(self) -> dict:
