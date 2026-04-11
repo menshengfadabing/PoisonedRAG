@@ -23,6 +23,9 @@ _project_root = Path(__file__).parent.parent.parent.parent  # pages/ → poisone
 from dotenv import load_dotenv
 load_dotenv(_project_root / ".env")
 
+# 测试结果持久化路径
+_RESULTS_FILE = _project_root / "docs" / "防毒效果测试报告.json"
+
 src_dir = _project_root / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
@@ -72,6 +75,37 @@ with st.sidebar:
 # ============================================================
 # 工具函数
 # ============================================================
+
+def _save_results_to_file(results: dict):
+    """保存测试结果到 JSON 文件（不含 DataFrame，转为可序列化格式）"""
+    data = dict(results)
+    if "poison_df" in data:
+        data["poison_records"] = results["poison_df"].to_dict(orient="records")
+        del data["poison_df"]
+    _RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(_RESULTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _load_results_from_file() -> dict | None:
+    """从 JSON 文件加载测试结果"""
+    if not _RESULTS_FILE.exists():
+        return None
+    try:
+        with open(_RESULTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if "poison_records" in data:
+            data["poison_df"] = pd.DataFrame(data["poison_records"])
+            del data["poison_records"]
+        return data
+    except Exception:
+        return None
+
+
+def _clear_results_file():
+    """删除持久化文件"""
+    if _RESULTS_FILE.exists():
+        _RESULTS_FILE.unlink()
 
 def load_all_poison_samples() -> list[dict]:
     """加载所有投毒语料"""
@@ -676,9 +710,9 @@ def main():
     st.title("🛡️ PoisonedRAG 防毒效果可视化")
     st.caption("三阶段防护系统（入库审查 → 检索过滤 → 生成校验）对各类投毒攻击的检测效果")
 
-    # 初始化 session state
+    # 初始化 session state（优先从文件加载上次结果）
     if "test_results" not in st.session_state:
-        st.session_state.test_results = None
+        st.session_state.test_results = _load_results_from_file()
     if "test_running" not in st.session_state:
         st.session_state.test_running = False
 
@@ -695,6 +729,7 @@ def main():
     if clear_button:
         st.session_state.test_results = None
         st.session_state.test_running = False
+        _clear_results_file()
         st.rerun()
 
     # 运行测试
@@ -769,6 +804,8 @@ def main():
             "test_mode": mode_label,
             "timestamp": datetime.now().isoformat(),
         }
+        # 持久化到文件，下次打开页面自动加载
+        _save_results_to_file(st.session_state.test_results)
         st.session_state.test_running = False
         st.rerun()
 
@@ -787,6 +824,7 @@ def main():
             f"耗时: {results['elapsed']:.1f}s | "
             f"测试模式: {results.get('test_mode', '未知')}"
         )
+        st.caption("💡 测试结果已自动保存，下次打开页面无需重新测试（点击「清除结果」可清除）")
 
         # 模块 1: 核心指标
         render_metric_cards(df, results["normal_result"])

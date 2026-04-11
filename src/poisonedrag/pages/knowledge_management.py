@@ -23,6 +23,8 @@ from poisonedrag.vectorstore import get_vectorstore
 from poisonedrag.resecurity import (
     DocumentReviewer,
     ReviewQueueManager,
+    ReviewLog,
+    QueuedDocument,
     TextSplitter,
     create_document_reviewer,
     create_review_queue_manager,

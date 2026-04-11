@@ -220,6 +220,50 @@ def render_chat_message(message: Dict[str, Any]):
         st.markdown(content)
         metadata = message.get("metadata", {})
         if metadata:
+            # 渲染三阶段防护状态
+            stage_status = []
+            reviewed_count = 0
+            docs = metadata.get("documents", [])
+            for d in docs:
+                if isinstance(d, dict) and d.get("metadata", {}).get("reviewed", False):
+                    reviewed_count += 1
+                elif hasattr(d, 'metadata') and getattr(d, 'metadata', {}).get("reviewed", False):
+                    reviewed_count += 1
+
+            if docs:
+                stage_status.append(f"✅ 入库审查：检索到的 {reviewed_count} 篇文档均已通过审查")
+
+            retrieval_warnings = metadata.get("retrieval_warnings", [])
+            filtered_count = metadata.get("filtered_count", 0)
+            retrieval_enabled = metadata.get("retrieval_filter_enabled", True)
+            if retrieval_enabled:
+                if filtered_count > 0:
+                    stage_status.append(f"🔍 检索过滤：已拦截 {filtered_count} 篇可疑文档")
+                elif retrieval_warnings:
+                    stage_status.append(f"🔍 检索过滤：已拦截 {len(retrieval_warnings)} 篇可疑文档")
+                else:
+                    stage_status.append(f"🔍 检索过滤：已检查 {len(docs)} 篇文档，无异常")
+
+            validation_passed = metadata.get("validation_passed", True)
+            validation_warnings = metadata.get("validation_warnings", [])
+            if validation_passed:
+                stage_status.append("✅ 生成校验：通过安全校验")
+                stage_status.extend([f"  ⚠️ {w}" for w in validation_warnings])
+            else:
+                stage_status.append("⚠️ 生成校验：未通过，已拦截原始响应")
+
+            if stage_status:
+                with st.expander("🛡️ 三阶段防护状态", expanded=False):
+                    for s in stage_status:
+                        if s.startswith("⚠️"):
+                            st.warning(s)
+                        elif s.startswith("✅"):
+                            st.success(s)
+                        elif s.startswith("🔍"):
+                            st.info(s)
+                        else:
+                            st.caption(s)
+
             if metadata.get("warnings"):
                 with st.expander("⚠️ 安全警告", expanded=False):
                     for w in metadata["warnings"]:
@@ -285,6 +329,7 @@ def handle_user_input(app: ChatApp, prompt: str):
             is_safe = True
             warnings = list(result.warnings)
             confidence = 1.0
+            validation_warnings = []
             if validation_result and not validation_result.is_safe:
                 full_response = (
                     "⚠️ 检测到该回答可能存在安全风险或事实不一致，已为您拦截原始响应。"
@@ -292,10 +337,14 @@ def handle_user_input(app: ChatApp, prompt: str):
                 )
                 display.markdown(full_response)
                 is_safe = False
+                validation_warnings = validation_result.warnings
                 warnings.extend(validation_result.warnings)
                 confidence = validation_result.confidence
             elif validation_result:
                 confidence = validation_result.confidence
+                if validation_result.warnings:
+                    validation_warnings = validation_result.warnings
+                    warnings.extend(validation_result.warnings)
 
             metadata = {
                 "warnings": warnings,
@@ -305,7 +354,47 @@ def handle_user_input(app: ChatApp, prompt: str):
                 ],
                 "confidence": confidence,
                 "is_safe": is_safe,
+                "filtered_count": result.filtered_count,
+                "retrieval_warnings": list(result.warnings),
+                "retrieval_filter_enabled": app.retriever.content_filter is not None,
+                "validation_warnings": validation_warnings,
+                "validation_passed": validation_result.is_safe if validation_result else True,
+                "validation_enabled": app.response_validator is not None,
             }
+
+            # 显示三阶段防护状态
+            stage_status = []
+            # Stage 1: 入库审查（已在上传时完成，此处显示状态）
+            if result.documents:
+                reviewed_count = sum(1 for d in result.documents if d.metadata.get("reviewed", False))
+                stage_status.append(f"✅ 入库审查：检索到的 {reviewed_count} 篇文档均已通过审查")
+
+            # Stage 2: 检索过滤
+            if result.filtered_count and result.filtered_count > 0:
+                stage_status.append(f"🔍 检索过滤：已拦截 {result.filtered_count} 篇可疑文档")
+            elif app.retriever.content_filter:
+                stage_status.append(f"🔍 检索过滤：已检查 {len(result.documents)} 篇文档，无异常")
+
+            # Stage 3: 生成校验
+            if validation_result:
+                if validation_result.is_safe:
+                    stage_status.append("✅ 生成校验：通过安全校验")
+                    if validation_result.warnings:
+                        stage_status.extend([f"  ⚠️ {w}" for w in validation_result.warnings])
+                else:
+                    stage_status.append("⚠️ 生成校验：未通过，已拦截原始响应")
+
+            if stage_status:
+                with st.expander("🛡️ 三阶段防护状态", expanded=True):
+                    for s in stage_status:
+                        if s.startswith("⚠️"):
+                            st.warning(s)
+                        elif s.startswith("✅"):
+                            st.success(s)
+                        elif s.startswith("🔍"):
+                            st.info(s)
+                        else:
+                            st.caption(s)
 
             if warnings:
                 with st.expander("⚠️ 安全警告", expanded=False):
