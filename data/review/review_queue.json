@@ -267,7 +267,7 @@
     "reason": "规则引擎检测: 可疑URL: http://$",
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.125602",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "id": "doc_20260317_164220_1",
@@ -277,7 +277,7 @@
     "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: http://172.19.48.1:7897",
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.127791",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "id": "doc_20260317_164220_2",
@@ -287,7 +287,7 @@
     "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: https://www.google.com",
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.128960",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "id": "doc_20260317_164220_3",
@@ -297,7 +297,7 @@
     "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de..., 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/gp...",
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.129716",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "id": "doc_20260317_164220_4",
@@ -307,7 +307,7 @@
     "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de...",
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.130271",
-    "status": "pending"
+    "status": "rejected"
   },
   {
     "id": "doc_20260317_164220_5",

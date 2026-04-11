@@ -167,6 +167,26 @@ class ContentFilter:
             FilterResult 过滤结果
         """
         source = document.metadata.get("source", "")
+
+        # 如果文档已通过入库审查（有 reviewed 标记），只进行轻量级关键词检查
+        if document.metadata.get("reviewed", False):
+            warnings = []
+            risk_score = 0.0
+
+            keyword_matches = self._keyword_pattern.findall(document.page_content)
+            if keyword_matches:
+                unique_matches = list(set(keyword_matches))
+                warnings.append(f"⚠️ 已审查文档但检测到敏感关键词: {', '.join(unique_matches)}")
+                risk_score += 0.3 * len(unique_matches)
+
+            is_safe = risk_score < 0.5
+            return FilterResult(
+                is_safe=is_safe,
+                warnings=warnings,
+                risk_score=min(1.0, risk_score),
+            )
+
+        # 未审查文档：进行完整检查
         source_trust = self._check_source_trust(source)
 
         # 非可信来源：正常内容检查 + 风险加分

@@ -84,7 +84,19 @@ class TextSplitter:
         if not text or not text.strip():
             return []
 
+        # 清理空白：将连续空白（包括换行、制表符）压缩为单个空格
+        # 避免 PDF/DOCX 提取时的多余换行导致异常分割
+        import re
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        if not text:
+            return []
+
         chunks = self._splitter.split_text(text)
+
+        # 过滤过小的块（少于 5 字符的纯标题/标签通常无语义价值）
+        chunks = [c for c in chunks if len(c.strip()) >= 5]
+
         return chunks
 
     def split_texts(self, texts: List[str]) -> List[str]:

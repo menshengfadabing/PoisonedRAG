@@ -12,7 +12,7 @@ from pathlib import Path
 import streamlit as st
 
 # 添加 src 目录到 sys.path
-project_root = Path(__file__).parent.parent  # PoisonedRAG/
+project_root = Path(__file__).parent.parent.parent.parent  # PoisonedRAG/
 src_dir = project_root / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))

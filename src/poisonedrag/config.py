@@ -99,8 +99,12 @@ class Config:
 
     # --- 文档处理配置 ---
     review_doc_max_length: int = 800    # 每个文档最大字符数（超出截断）
-    review_doc_chunk_size: int = 500    # 文档分割块大小（字符数）
-    review_doc_chunk_overlap: int = 50  # 文档分割块重叠（字符数）
+    review_doc_chunk_size: int = field(
+        default_factory=lambda: int(os.getenv("REVIEW_CHUNK_SIZE", "500"))
+    )
+    review_doc_chunk_overlap: int = field(
+        default_factory=lambda: int(os.getenv("REVIEW_CHUNK_OVERLAP", "50"))
+    )
 
     # --- Token 估算配置 ---
     # 中文约 1.5 字符/token，英文约 4 字符/token，混合取中间值
@@ -152,7 +156,7 @@ class Config:
             "chroma"
         )
     )
-    chroma_collection_name: str = "poisonedrag_knowledge"
+    chroma_collection_name: str = "poisonedrag_uploaded"
 
     # 检索配置
     retriever_top_k: int = 5

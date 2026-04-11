@@ -2,10 +2,12 @@ import sys
 import os
 from pathlib import Path
 import streamlit as st
+import json
+import tempfile
 from datetime import datetime
 
 from dotenv import load_dotenv
-_project_root = Path(__file__).parent.parent.parent
+_project_root = Path(__file__).parent.parent.parent.parent
 load_dotenv(_project_root / ".env")
 
 src_dir = _project_root / "src"
@@ -13,11 +15,11 @@ if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
 from langchain_core.documents import Document
+from langchain_core.messages import SystemMessage, HumanMessage
 
 from poisonedrag.config import get_config
 from poisonedrag.embeddings import get_embedding_model
 from poisonedrag.vectorstore import get_vectorstore
-from poisonedrag.data.knowledge_base import create_knowledge_base
 from poisonedrag.resecurity import (
     DocumentReviewer,
     ReviewQueueManager,
@@ -29,14 +31,39 @@ from poisonedrag.resecurity import (
     ReviewStatus,
 )
 from poisonedrag.llm import get_review_llm
+from poisonedrag.data.document_loader import (
+    load_file as load_doc_file,
+    SUPPORTED_EXTENSIONS as DOC_EXTENSIONS,
+)
 
 # ============================================================
-# 三档审查评级映射
+# 审查评级映射
 # ============================================================
 
-PASS_REVIEW_THRESHOLD = 0.3     # 低于此值 → pass（直接入库）
-REVIEW_FAIL_THRESHOLD = 0.7     # 高于等于此值 → fail（拒绝入库）
-                                # 中间区间 → review（交给人工审查）
+STATUS_MAP = {
+    "p": {"label": "✅ pass", "color": "green", "action": "pass"},
+    "r": {"label": "⚠️ review", "color": "orange", "action": "review"},
+    "f": {"label": "❌ fail", "color": "red", "action": "fail"},
+}
+
+# 系统提示词：仅返回 id + p/r/f，节省 token
+BATCH_REVIEW_PROMPT = """你是文档安全审查员。批量审查文档，只返回 JSON。
+
+返回格式（严格遵守）:
+{"results": [{"id": 1, "status": "p"}]}
+
+status 只有三个值:
+- p: 安全，无风险
+- r: 有风险，需要人工复核
+- f: 高风险，拒绝入库
+
+检查重点：
+1. 可疑包名（仿冒正规库）
+2. 硬编码凭证（密码/密钥/token）
+3. 危险命令（eval/exec/os.system/rm -rf）
+4. 钓鱼欺诈/误导建议/依赖投毒/错误事实注入
+
+返回纯 JSON，不要任何其他文字。"""
 
 
 def init_session_state():
@@ -47,20 +74,16 @@ def init_session_state():
     if "document_reviewer" not in st.session_state:
         st.session_state.document_reviewer = None
 
-    if "text_splitter" not in st.session_state:
-        config = get_config()
-        st.session_state.text_splitter = create_text_splitter(
-            chunk_size=config.review_doc_chunk_size,
-            chunk_overlap=config.review_doc_chunk_overlap,
-        )
-
-    # 上传结果缓存（避免 rerun 时重复处理）
     if "upload_results" not in st.session_state:
         st.session_state.upload_results = None
 
+    # 入库进度（用于 embedding 阶段展示）
+    if "index_progress" not in st.session_state:
+        st.session_state.index_progress = None
+
 
 def get_document_reviewer() -> DocumentReviewer:
-    """获取文档审查器（延迟初始化）"""
+    """获取文档审查器"""
     if st.session_state.document_reviewer is None:
         with st.spinner("正在初始化审查模型..."):
             llm = get_review_llm()
@@ -68,14 +91,148 @@ def get_document_reviewer() -> DocumentReviewer:
     return st.session_state.document_reviewer
 
 
+def batch_review_stream(
+    reviewer: DocumentReviewer,
+    chunks: list[str],
+    batch_size: int = 20,
+) -> list[ChunkReviewResult]:
+    """
+    批量审查，带流式输出展示。
+    返回 ChunkReviewResult 列表。
+    """
+    llm = reviewer.llm
+    if llm is None:
+        return [
+            ChunkReviewResult(chunk_id=i, content=c, risk_score=0.5,
+                              risk_type="LLM未初始化", reason="LLM 未配置")
+            for i, c in enumerate(chunks)
+        ]
+
+    all_results = []
+    try:
+        status_placeholder = st.empty()
+        raw_display = st.empty()
+    except Exception:
+        status_placeholder = None
+        raw_display = None
+
+    for batch_start in range(0, len(chunks), batch_size):
+        batch = chunks[batch_start:batch_start + batch_size]
+        chunks_text = "\n---\n".join(
+            f"[{i+1}] {c[:reviewer.doc_max_length]}"
+            for i, c in enumerate(batch)
+        )
+
+        user_prompt = f"""审查以下 {len(batch)} 个文档，返回 JSON:
+
+{chunks_text}
+
+格式: {{"results": [{{"id": 1, "status": "p"}}]}}
+只返回 JSON。"""
+
+        messages = [
+            SystemMessage(content=BATCH_REVIEW_PROMPT),
+            HumanMessage(content=user_prompt),
+        ]
+
+        raw_response = ""
+        for chunk in llm.stream(messages):
+            content = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            if content:
+                raw_response += content
+                if status_placeholder is not None:
+                    status_placeholder.info(
+                        f"⏳ 正在审查第 {batch_start // batch_size + 1} 批 "
+                        f"({batch_start + 1}-{min(batch_start + batch_size, len(chunks))} 号) — "
+                        f"已接收 {len(raw_response)} 字符..."
+                    )
+                if raw_display is not None:
+                    raw_display.expander("📡 审查响应流（实时）", expanded=False).text(
+                        raw_response[-500:] if len(raw_response) > 500 else raw_response
+                    )
+
+        # 解析 JSON
+        batch_results = _parse_batch_response(raw_response, batch, batch_start)
+        all_results.extend(batch_results)
+
+    if status_placeholder is not None:
+        status_placeholder.empty()
+    if raw_display is not None:
+        raw_display.empty()
+    return all_results
+
+
+def _parse_batch_response(
+    raw_content: str,
+    chunks: list[str],
+    start_id: int,
+) -> list[ChunkReviewResult]:
+    """解析 LLM 返回的 p/r/f JSON 响应"""
+    import re
+
+    json_match = re.search(r'\{[\s\S]*\}', raw_content)
+    if not json_match:
+        return [
+            ChunkReviewResult(
+                chunk_id=start_id + i, content=chunk,
+                risk_score=0.5, risk_type="解析失败", reason="JSON 格式异常"
+            )
+            for i, chunk in enumerate(chunks)
+        ]
+
+    try:
+        data = json.loads(json_match.group())
+        results_list = data.get("results", [])
+        result_map = {r.get("id"): r for r in results_list}
+
+        score_map = {"p": 0.0, "r": 0.5, "f": 0.9}
+        type_map = {
+            "p": None,
+            "r": "需要人工复核",
+            "f": "高风险",
+        }
+
+        parsed = []
+        for i, chunk in enumerate(chunks):
+            doc_id = i + 1
+            if doc_id in result_map:
+                r = result_map[doc_id]
+                status = r.get("status", "r").lower()
+                parsed.append(ChunkReviewResult(
+                    chunk_id=start_id + i,
+                    content=chunk,
+                    risk_score=score_map.get(status, 0.5),
+                    risk_type=type_map.get(status, "未知"),
+                    reason={"p": "安全，无风险", "r": "有风险，需人工复核", "f": "高风险，拒绝入库"}.get(status, "未知"),
+                ))
+            else:
+                parsed.append(ChunkReviewResult(
+                    chunk_id=start_id + i, content=chunk,
+                    risk_score=0.5, risk_type="未审查", reason="LLM 未返回结果"
+                ))
+
+        return parsed
+
+    except (json.JSONDecodeError, ValueError):
+        return [
+            ChunkReviewResult(
+                chunk_id=start_id + i, content=chunk,
+                risk_score=0.5, risk_type="解析失败", reason="JSON 解析错误"
+            )
+            for i, chunk in enumerate(chunks)
+        ]
+
+
+# ============================================================
 # Page config
+# ============================================================
 st.set_page_config(
     page_title="知识库管理",
     page_icon="📚",
     layout="wide",
 )
 
-# Sidebar navigation
+# Sidebar
 with st.sidebar:
     st.title("📚 知识库管理")
     st.markdown("---")
@@ -87,58 +244,60 @@ with st.sidebar:
     if st.button("⚙️ 设置", use_container_width=True):
         st.switch_page("pages/settings.py")
 
-# Initialize session state
+# ============================================================
+# Initialize
+# ============================================================
 init_session_state()
 
-# Initialize components
 @st.cache_resource
 def init_components():
     config = get_config()
     embedding_model = get_embedding_model()
     vectorstore = get_vectorstore(embedding_function=embedding_model.embeddings)
-    kb = create_knowledge_base(vectorstore=vectorstore)
-    return kb, vectorstore
+    splitter = create_text_splitter(
+        chunk_size=config.review_doc_chunk_size,
+        chunk_overlap=config.review_doc_chunk_overlap,
+    )
+    return embedding_model, vectorstore, splitter
 
-kb, vectorstore = init_components()
+embedding_model, vectorstore, splitter = init_components()
 
 st.title("📚 知识库管理")
 
 # ============================================================
-# 知识库状态概览
+# Status overview
 # ============================================================
 doc_count = vectorstore.count()
-queue_manager = st.session_state.review_queue_manager
-stats = queue_manager.get_stats()
+qm = st.session_state.review_queue_manager
+stats = qm.get_stats()
 
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("向量存储文档", doc_count)
-col2.metric("待审核", stats["pending"])
-col3.metric("已通过", stats["approved"] + stats["auto_approved"])
-col4.metric("已拒绝", stats["rejected"])
+col1.metric("已入库文档", doc_count)
+col2.metric("待人工审核", stats["pending"])
+col3.metric("审核已通过", stats["approved"] + stats["auto_approved"])
+col4.metric("审核已拒绝", stats["rejected"])
 
 # ============================================================
 # Tabs
 # ============================================================
-tab_upload, tab_load, tab_docs, tab_clear = st.tabs([
+tab_upload, tab_docs, tab_clear = st.tabs([
     "📤 上传语料",
-    "📥 加载知识库",
-    "📋 文档状态",
+    "📋 文档列表",
     "🗑️ 清空知识库",
 ])
 
-
 # ============================================================
-# Tab 1: Upload 语料（上传 → 分割 → 审查 → 三档评级）
+# Tab 1: Upload + Review + Index
 # ============================================================
 with tab_upload:
     st.subheader("📤 上传语料")
-    st.caption("上传文件后，系统自动分割、审查，按三档评级处理：")
+    st.caption("上传文件 → 自动分割 → LLM 安全审查 → 通过审查的语料自动入库")
     st.markdown("""
-    | 评级 | 风险分数 | 处理方式 |
-    |------|----------|----------|
-    | ✅ **pass** | < 0.3 | 直接入库 |
-    | ⚠️ **review** | 0.3 ~ 0.7 | 进入人工审核队列 |
-    | ❌ **fail** | ≥ 0.7 | 拒绝入库 |
+    | 评级 | 含义 | 处理方式 |
+    |------|------|----------|
+    | ✅ **pass** | 安全无风险 | 自动入库 |
+    | ⚠️ **review** | 需人工复核 | 进入人工审核队列 |
+    | ❌ **fail** | 高风险 | 拒绝入库 |
     """)
 
     uploaded_files = st.file_uploader(
@@ -149,29 +308,44 @@ with tab_upload:
     )
 
     if uploaded_files:
+        config = get_config()
+        chunk_size = st.number_input(
+            "语料分割大小（字符数）",
+            min_value=100,
+            max_value=5000,
+            value=config.review_doc_chunk_size,
+            step=50,
+            help="每个语料块的最大字符数",
+            key="upload_chunk_size",
+        )
+        chunk_overlap = st.number_input(
+            "语料分割重叠（字符数）",
+            min_value=0,
+            max_value=500,
+            value=config.review_doc_chunk_overlap,
+            step=10,
+            help="相邻语料块的重叠字符数",
+            key="upload_chunk_overlap",
+        )
+
         if st.button("🔍 开始审查并入库", type="primary", use_container_width=True):
             reviewer = get_document_reviewer()
-            splitter = st.session_state.text_splitter
             qm = st.session_state.review_queue_manager
 
-            all_chunks = []       # (content, source)
-            all_results = []      # ChunkReviewResult
+            # 动态创建分割器
+            from poisonedrag.resecurity import create_text_splitter as make_splitter
+            temp_splitter = make_splitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-            # 1. 读取文件并提取文本（支持 PDF/DOCX/PPTX/MD/JSON/TXT）
+            all_chunks = []  # (content, source)
+
+            # 1. 读取文件并提取文本
             with st.spinner("正在读取文件并提取文本..."):
-                import tempfile
-                from poisonedrag.data.document_loader import (
-                    load_file as load_doc_file,
-                    SUPPORTED_EXTENSIONS as DOC_EXTENSIONS,
-                )
-
                 for uf in uploaded_files:
                     ext = Path(uf.name).suffix.lower()
                     if ext not in DOC_EXTENSIONS:
                         st.warning(f"⚠️ 跳过不支持的文件格式: {uf.name}")
                         continue
 
-                    # 将上传的文件保存到临时文件，再用加载器解析
                     with tempfile.NamedTemporaryFile(
                         delete=False, suffix=ext, dir="/tmp"
                     ) as tmp:
@@ -184,9 +358,8 @@ with tab_upload:
                             st.warning(f"⚠️ {uf.name} 未提取到文本内容")
                             continue
 
-                        # 对每个文档块进行文本分割
                         for doc in documents:
-                            chunks = splitter.split_text(doc.page_content)
+                            chunks = temp_splitter.split_text(doc.page_content)
                             for chunk in chunks:
                                 all_chunks.append((chunk, uf.name))
                     except Exception as e:
@@ -199,16 +372,14 @@ with tab_upload:
             if not all_chunks:
                 st.warning("⚠️ 未提取到有效文本内容")
             else:
-                # 2. 批量审查
-                with st.spinner("正在调用 LLM 进行安全审查..."):
-                    chunk_texts = [c[0] for c in all_chunks]
-                    review_results = reviewer.batch_quick_review(
-                        chunk_texts, use_parallel=True
-                    )
-                    all_results = review_results
+                # 2. 批量审查（带流式输出）
+                st.subheader("🔍 审查进度")
+                chunk_texts = [c[0] for c in all_chunks]
+                batch_size = reviewer.batch_size if hasattr(reviewer, 'batch_size') else 20
+                all_results = batch_review_stream(reviewer, chunk_texts, batch_size=batch_size)
 
-                # 3. 按三档评级分别处理
-                pass_count = 0
+                # 3. 分类结果
+                pass_docs = []
                 review_count = 0
                 fail_count = 0
                 fail_details = []
@@ -216,10 +387,9 @@ with tab_upload:
 
                 for i, result in enumerate(all_results):
                     chunk_text, source_file = all_chunks[i]
+                    status = "p" if result.risk_score < 0.2 else "r" if result.risk_score < 0.8 else "f"
 
-                    if result.risk_score < PASS_REVIEW_THRESHOLD:
-                        # === pass：直接入库 ===
-                        pass_count += 1
+                    if status == "p":
                         doc = Document(
                             page_content=chunk_text,
                             metadata={
@@ -230,21 +400,13 @@ with tab_upload:
                                 "upload_time": datetime.now().isoformat(),
                             }
                         )
-                        try:
-                            vectorstore.add_documents([doc])
-                        except Exception as e:
-                            st.error(f"pass 文档入库失败: {e}")
+                        pass_docs.append(doc)
 
-                    elif result.risk_score < REVIEW_FAIL_THRESHOLD:
-                        # === review：加入人工审核队列 ===
+                    elif status == "r":
                         review_count += 1
-                        # 生成唯一 ID
-                        doc_id = (
-                            f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
-                        )
+                        doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
                         from poisonedrag.resecurity.review_queue_manager import (
                             QueuedDocument,
-                            ReviewLog,
                         )
                         queued_doc = QueuedDocument(
                             id=doc_id,
@@ -259,20 +421,17 @@ with tab_upload:
                         qm._queue.append(queued_doc)
                         review_items.append(queued_doc)
 
-                    else:
-                        # === fail：拒绝入库 ===
+                    else:  # f
                         fail_count += 1
                         fail_details.append({
                             "source": source_file,
-                            "risk_score": result.risk_score,
-                            "risk_type": result.risk_type,
+                            "chunk_id": i,
+                            "content_preview": chunk_text[:100],
+                            "status": "fail",
                             "reason": result.reason,
                         })
-                        # 记录日志
+                        doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
                         from poisonedrag.resecurity.review_queue_manager import ReviewLog
-                        doc_id = (
-                            f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
-                        )
                         qm._logs.append(ReviewLog(
                             timestamp=datetime.now().isoformat(),
                             doc_id=doc_id,
@@ -281,14 +440,42 @@ with tab_upload:
                             risk_type=result.risk_type,
                             reason=result.reason,
                             operator="system",
-                            comment="风险分数超过 fail 阈值，自动拒绝",
+                            comment="高风险，拒绝入库",
                         ))
 
-                # 保存队列和日志
+                # 4. 批量入库（带进度条）
+                pass_count = len(pass_docs)
+                if pass_docs:
+                    st.markdown("---")
+                    st.subheader("📥 入库进度")
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+
+                    # 分批入库（DashScope 批量嵌入更快）
+                    embed_batch_size = 20
+                    total_batches = (pass_count + embed_batch_size - 1) // embed_batch_size
+
+                    for batch_idx in range(0, pass_count, embed_batch_size):
+                        batch = pass_docs[batch_idx:batch_idx + embed_batch_size]
+                        batch_num = batch_idx // embed_batch_size + 1
+                        status_text.info(
+                            f"⏳ 正在向量化第 {batch_num}/{total_batches} 批 "
+                            f"({batch_idx + 1}-{min(batch_idx + embed_batch_size, pass_count)}/{pass_count})..."
+                        )
+                        try:
+                            vectorstore.add_documents(batch)
+                        except Exception as e:
+                            st.error(f"批量入库失败: {e}")
+                        progress_bar.progress(min(1.0, (batch_idx + embed_batch_size) / pass_count))
+
+                    progress_bar.progress(1.0)
+                    status_text.success(f"✅ 全部 {pass_count} 篇文档已入库")
+
+                # 5. 保存队列和日志
                 qm._save_queue()
                 qm._save_logs()
 
-                # 缓存结果用于展示
+                # 缓存结果
                 st.session_state.upload_results = {
                     "pass_count": pass_count,
                     "review_count": review_count,
@@ -296,94 +483,89 @@ with tab_upload:
                     "review_items": review_items,
                     "fail_details": fail_details,
                     "total_chunks": len(all_chunks),
+                    "results": [
+                        {
+                            "chunk_id": i,
+                            "source": all_chunks[i][1],
+                            "content": all_chunks[i][0],
+                            "status": "p" if r.risk_score < 0.2 else "r" if r.risk_score < 0.8 else "f",
+                            "risk_score": r.risk_score,
+                            "risk_type": r.risk_type,
+                            "reason": r.reason,
+                        }
+                        for i, r in enumerate(all_results)
+                    ],
                 }
 
+                # 自动刷新页面，更新文档数量和文档列表
                 st.rerun()
 
-        # 显示上次上传的审查结果
+        # 显示审查结果
         results = st.session_state.upload_results
         if results:
             st.markdown("---")
-            st.subheader("📊 上次审查结果")
+            st.subheader("📊 审查结果")
 
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("总块数", results["total_chunks"])
-            c2.metric("✅ pass（直接入库）", results["pass_count"])
-            c3.metric("⚠️ review（待人工审核）", results["review_count"])
-            c4.metric("❌ fail（拒绝入库）", results["fail_count"])
+            c2.metric("✅ pass", results["pass_count"])
+            c3.metric("⚠️ review", results["review_count"])
+            c4.metric("❌ fail", results["fail_count"])
 
-            # 展示 review 项目，引导用户去人工审核页面
             if results["review_items"]:
                 st.warning(
-                    f"有 **{len(results['review_items'])}** 个文本块需要人工审核，"
+                    f"有 **{len(results['review_items'])}** 个语料块需人工审核，"
                     f"请前往 [📥 人工审核页面](pages/review.py) 处理。"
                 )
-                for item in results["review_items"]:
-                    risk_color = "🟡"
-                    with st.expander(
-                        f"{risk_color} [{item.risk_score:.2f}] {item.source}"
-                    ):
-                        st.text(item.content[:500])
-                        st.caption(f"风险类型: {item.risk_type or '未知'}")
-                        if item.reason:
-                            st.caption(f"LLM 判断: {item.reason}")
 
-            # 展示 fail 项目
-            if results["fail_details"]:
-                st.error(
-                    f"有 **{len(results['fail_details'])}** 个文本块因高风险被拒绝。"
+            # 渲染格式化审查结果表格
+            if results.get("results"):
+                st.subheader("📋 详细审查结果")
+
+                # 构建表格数据
+                table_data = []
+                for r in results["results"]:
+                    info = STATUS_MAP.get(r["status"], STATUS_MAP["r"])
+                    table_data.append({
+                        "语料ID": r["chunk_id"],
+                        "语料来源": r["source"],
+                        "审查评级": info["label"],
+                        "语料内容": r["content"][:150] + ("..." if len(r["content"]) > 150 else ""),
+                        "原因": r.get("reason", ""),
+                    })
+
+                st.table(
+                    __import__("pandas", fromlist=["DataFrame"]).DataFrame(table_data)
                 )
-                for item in results["fail_details"]:
-                    with st.expander(
-                        f"❌ [{item['risk_score']:.2f}] {item['source']}"
-                    ):
-                        st.caption(f"风险类型: {item['risk_type'] or '未知'}")
-                        st.caption(f"原因: {item['reason'] or '无'}")
 
-            # 清理结果缓存（避免下次打开页面还显示旧结果）
+                # 可展开的详细内容
+                for r in results["results"]:
+                    info = STATUS_MAP.get(r["status"], STATUS_MAP["r"])
+                    with st.expander(
+                        f"{info['label']} ID:{r['chunk_id']} | {r['source']}"
+                    ):
+                        st.text(r["content"])
+                        st.caption(f"原因: {r.get('reason', '')}")
+
             if st.button("🧹 清除结果展示", key="clear_upload_results"):
                 st.session_state.upload_results = None
                 st.rerun()
 
 
 # ============================================================
-# Tab 2: Load from directory
-# ============================================================
-with tab_load:
-    st.subheader("加载知识库")
-    st.caption("从 `data/knowledge/` 目录加载所有 JSON/MD/TXT 文件到向量存储（**不经过审查**）")
-
-    if st.button("📥 开始加载", type="primary"):
-        with st.spinner("正在加载..."):
-            try:
-                documents = kb.load_from_directory()
-                total_files = len(documents)
-                if total_files == 0:
-                    st.warning("⚠️ `data/knowledge/` 目录下没有找到可加载的文档文件")
-                else:
-                    indexed_count = kb.index_to_vectorstore(documents)
-                    st.success(f"✅ 成功索引 {indexed_count} 个文档")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"加载失败: {e}")
-
-
-# ============================================================
-# Tab 3: Document status
+# Tab 2: Document list
 # ============================================================
 with tab_docs:
-    st.subheader("文档列表")
+    st.subheader("已入库文档")
 
     if doc_count == 0:
-        st.info("知识库为空，请先加载文档")
+        st.info("知识库为空，请上传语料")
     else:
-        # Get all documents from vectorstore
         all_docs = vectorstore.vectorstore.get()
         ids = all_docs.get("ids", [])
         metadatas = all_docs.get("metadatas", [])
         documents = all_docs.get("documents", [])
 
-        # Pagination
         page_size = 20
         total_pages = max(1, (len(ids) + page_size - 1) // page_size)
         page = st.number_input("页码", min_value=1, max_value=total_pages, value=1)
@@ -397,33 +579,16 @@ with tab_docs:
             content = documents[i] if i < len(documents) else ""
 
             source = meta.get("source", "未知")
-            doc_type = meta.get("type", meta.get("category", "未知"))
-            reviewed = meta.get("reviewed", False)
             risk = meta.get("risk_score", None)
 
-            # Status badge
-            status_icon = "✅" if reviewed else "📄"
-
-            title_extra = ""
-            if risk is not None:
-                if risk < PASS_REVIEW_THRESHOLD:
-                    title_extra = " | 🟢 pass"
-                elif risk < REVIEW_FAIL_THRESHOLD:
-                    title_extra = " | 🟡 review"
-                else:
-                    title_extra = " | 🔴 fail"
-
-            with st.expander(
-                f"{status_icon} [{doc_type}] `{doc_id[:8]}` — {source}{title_extra}"
-            ):
+            status_icon = "✅"
+            with st.expander(f"{status_icon} `{doc_id[:8]}` — {source}"):
                 col1, col2 = st.columns([1, 3])
                 with col1:
                     st.markdown(f"**ID:** `{doc_id}`")
                     st.markdown(f"**来源:** {source}")
-                    st.markdown(f"**类型:** {doc_type}")
                     if risk is not None:
                         st.markdown(f"**风险分数:** {risk:.2f}")
-                    # Show any extra metadata
                     extra_meta = {
                         k: v for k, v in meta.items()
                         if k not in ("source", "type", "category", "reviewed", "risk_score", "upload_time")
@@ -440,7 +605,7 @@ with tab_docs:
 
 
 # ============================================================
-# Tab 4: Clear
+# Tab 3: Clear
 # ============================================================
 with tab_clear:
     st.subheader("清空知识库")
@@ -452,7 +617,7 @@ with tab_clear:
     if current_count > 0:
         if st.button("🗑️ 确认清空", type="primary"):
             with st.spinner("正在清空..."):
-                kb.clear()
+                vectorstore.clear()
             st.success("✅ 知识库已清空")
             st.rerun()
     else:

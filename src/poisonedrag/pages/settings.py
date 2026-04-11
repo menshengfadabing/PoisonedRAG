@@ -54,6 +54,14 @@ def init_session_state():
         config = get_config()
         st.session_state.review_max_batch_size = config.review_max_batch_size
 
+    if "chunk_size" not in st.session_state:
+        config = get_config()
+        st.session_state.chunk_size = config.review_doc_chunk_size
+
+    if "chunk_overlap" not in st.session_state:
+        config = get_config()
+        st.session_state.chunk_overlap = config.review_doc_chunk_overlap
+
 
 def render_sidebar():
     """渲染侧边栏导航"""
@@ -389,13 +397,37 @@ def render_review_strategy_tab():
 
     st.markdown("---")
 
+    # 语料分割配置
+    st.subheader("语料分割配置")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.session_state.chunk_size = st.number_input(
+            "分割大小（字符数）",
+            min_value=100,
+            max_value=5000,
+            value=st.session_state.chunk_size,
+            step=50,
+            help="每个语料块的最大字符数",
+        )
+    with col2:
+        st.session_state.chunk_overlap = st.number_input(
+            "分割重叠（字符数）",
+            min_value=0,
+            max_value=500,
+            value=st.session_state.chunk_overlap,
+            step=10,
+            help="相邻语料块的重叠字符数",
+        )
+
+    st.markdown("---")
+
     # 保存按钮
     if st.button("💾 保存设置", type="primary", use_container_width=True):
         handle_save_settings()
 
 
 def handle_save_settings():
-    """保存设置到会话状态"""
+    """保存设置到会话状态和 .env 文件"""
     config = get_config()
 
     # 更新防护模式
@@ -414,7 +446,48 @@ def handle_save_settings():
     config.review_min_batch_size = st.session_state.review_min_batch_size
     config.review_max_batch_size = st.session_state.review_max_batch_size
 
-    st.success("✅ 设置已保存到会话状态（当前会话有效）")
+    # 更新语料分割配置
+    config.review_doc_chunk_size = st.session_state.chunk_size
+    config.review_doc_chunk_overlap = st.session_state.chunk_overlap
+
+    # 持久化到 .env 文件
+    env_path = _project_root / ".env"
+    chunk_updates = {
+        "REVIEW_CHUNK_SIZE": str(st.session_state.chunk_size),
+        "REVIEW_CHUNK_OVERLAP": str(st.session_state.chunk_overlap),
+    }
+    try:
+        if env_path.exists():
+            lines = env_path.read_text(encoding="utf-8").splitlines()
+        else:
+            lines = []
+
+        new_lines = []
+        updated_keys = set()
+        for line in lines:
+            stripped = line.strip()
+            matched = False
+            for key, value in chunk_updates.items():
+                if stripped.startswith(f"{key}=") and not stripped.startswith("#"):
+                    new_lines.append(f"{key}={value}")
+                    updated_keys.add(key)
+                    matched = True
+                    break
+            if not matched:
+                new_lines.append(line)
+
+        for key, value in chunk_updates.items():
+            if key not in updated_keys:
+                new_lines.append(f"{key}={value}")
+
+        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        load_dotenv(env_path, override=True)
+        reset_config()
+    except Exception as e:
+        st.error(f"保存到 .env 失败: {e}")
+        return
+
+    st.success("✅ 设置已保存（含 .env 持久化）")
 
 
 def main():

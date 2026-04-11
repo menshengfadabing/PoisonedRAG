@@ -47,7 +47,15 @@ def init_session_state():
     """初始化会话状态"""
     if "current_session_id" not in st.session_state:
         st.session_state.current_session_id = None
+
+    if "messages" not in st.session_state:
         st.session_state.messages = []
+
+    # 如果有会话 ID 但消息未加载，自动恢复消息
+    if st.session_state.current_session_id and not st.session_state.messages:
+        sess = load_session(st.session_state.current_session_id)
+        if sess:
+            st.session_state.messages = sess.get("messages", [])
 
     if "chat_app" not in st.session_state:
         st.session_state.chat_app = None

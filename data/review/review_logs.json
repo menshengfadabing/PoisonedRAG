@@ -268,5 +268,75 @@
     "reason": null,
     "operator": "system",
     "comment": "风险分数低于阈值，自动通过"
+  },
+  {
+    "timestamp": "2026-04-11T13:40:37.641675",
+    "doc_id": "upload_20260411_134037_39",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://dictionary.cambridge.org/editorial/woty.",
+    "operator": "system",
+    "comment": "风险分数超过 fail 阈值，自动拒绝"
+  },
+  {
+    "timestamp": "2026-04-11T13:42:14.626475",
+    "doc_id": "upload_20260411_134214_39",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://dictionary.cambridge.org/editorial/woty.",
+    "operator": "system",
+    "comment": "风险分数超过 fail 阈值，自动拒绝"
+  },
+  {
+    "timestamp": "2026-04-11T13:47:28.836071",
+    "doc_id": "doc_20260317_164220_4",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de...",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-04-11T13:47:29.885837",
+    "doc_id": "doc_20260317_164220_2",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: https://www.google.com",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-04-11T13:47:31.007510",
+    "doc_id": "doc_20260317_164220_3",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/de..., 可疑URL: https://mirrors.tuna.tsinghua.edu.cn/nodesource/gp...",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-04-11T13:47:32.319642",
+    "doc_id": "doc_20260317_164220_0",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$",
+    "operator": "user",
+    "comment": ""
+  },
+  {
+    "timestamp": "2026-04-11T13:47:34.401330",
+    "doc_id": "doc_20260317_164220_1",
+    "action": "rejected",
+    "risk_score": 0.75,
+    "risk_type": "高风险",
+    "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: http://172.19.48.1:7897",
+    "operator": "user",
+    "comment": ""
   }
 ]
