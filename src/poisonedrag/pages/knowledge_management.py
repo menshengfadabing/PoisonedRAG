@@ -398,6 +398,8 @@ with st.sidebar:
         st.switch_page("pages/knowledge_management.py")
     if st.button("📥 人工审核", use_container_width=True):
         st.switch_page("pages/review.py")
+    if st.button("🛡️ 防毒效果", use_container_width=True):
+        st.switch_page("pages/visualization.py")
     if st.button("⚙️ 设置", use_container_width=True):
         st.switch_page("pages/settings.py")
 
