@@ -237,8 +237,10 @@ with st.sidebar:
     st.title("📚 知识库管理")
     st.markdown("---")
     st.subheader("页面导航")
-    if st.button("💬 对话主页", use_container_width=True):
+    if st.button("💬 对话", use_container_width=True):
         st.switch_page("app.py")
+    if st.button("📚 知识库管理", use_container_width=True, type="primary"):
+        st.switch_page("pages/knowledge_management.py")
     if st.button("📥 人工审核", use_container_width=True):
         st.switch_page("pages/review.py")
     if st.button("⚙️ 设置", use_container_width=True):
@@ -372,11 +374,29 @@ with tab_upload:
             if not all_chunks:
                 st.warning("⚠️ 未提取到有效文本内容")
             else:
-                # 2. 批量审查（带流式输出）
-                st.subheader("🔍 审查进度")
-                chunk_texts = [c[0] for c in all_chunks]
-                batch_size = reviewer.batch_size if hasattr(reviewer, 'batch_size') else 20
-                all_results = batch_review_stream(reviewer, chunk_texts, batch_size=batch_size)
+                config = get_config()
+
+                # 根据入库审查开关决定是否调用 LLM 审查
+                if config.enable_ingest_review:
+                    # 2. 批量审查（带流式输出）
+                    st.subheader("🔍 审查进度")
+                    reviewer = get_document_reviewer()
+                    chunk_texts = [c[0] for c in all_chunks]
+                    batch_size = reviewer.batch_size if hasattr(reviewer, 'batch_size') else 20
+                    all_results = batch_review_stream(reviewer, chunk_texts, batch_size=batch_size)
+                else:
+                    # 跳过 LLM 审查，全部标记为 pass
+                    st.info("⚠️ 入库审查已关闭，所有语料将直接入库（未经安全审查）")
+                    all_results = [
+                        ChunkReviewResult(
+                            chunk_id=i,
+                            content=c[0],
+                            risk_score=0.0,
+                            risk_type=None,
+                            reason="入库审查已关闭",
+                        )
+                        for i, c in enumerate(all_chunks)
+                    ]
 
                 # 3. 分类结果
                 pass_docs = []

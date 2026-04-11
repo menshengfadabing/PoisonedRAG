@@ -164,16 +164,22 @@ class Config:
 
     # === 三阶段审查开关（独立控制）===
     # 入库阶段：LLM 文档安全审查
-    enable_ingest_review: bool = True
+    enable_ingest_review: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_INGEST_REVIEW", "true").lower() == "true"
+    )
 
     # 检索阶段：内容过滤器（关键词/语义异常）
-    enable_retrieval_filter: bool = False  # 默认关闭，效果有限
+    enable_retrieval_filter: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_RETRIEVAL_FILTER", "false").lower() == "true"
+    )
 
     # 生成阶段：响应校验器（一致性检查）
-    enable_generation_validator: bool = True
+    enable_generation_validator: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_GENERATION_VALIDATOR", "true").lower() == "true"
+    )
 
     # 防护模式（可选，用于快速设置三阶段开关）
-    protection_mode: Optional[str] = "standard"  # strict, standard, performance, development, disabled
+    protection_mode: Optional[str] = None  # strict, standard, performance, development, disabled
 
     # === 各阶段详细配置 ===
 

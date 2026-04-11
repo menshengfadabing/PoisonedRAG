@@ -69,12 +69,14 @@ def render_sidebar():
         st.title("⚙️ 设置")
         st.markdown("---")
         st.subheader("页面导航")
-        if st.button("💬 对话主页", use_container_width=True):
+        if st.button("💬 对话", use_container_width=True):
             st.switch_page("app.py")
-        if st.button("📥 人工审核", use_container_width=True):
-            st.switch_page("pages/review.py")
         if st.button("📚 知识库管理", use_container_width=True):
             st.switch_page("pages/knowledge_management.py")
+        if st.button("📥 人工审核", use_container_width=True):
+            st.switch_page("pages/review.py")
+        if st.button("⚙️ 设置", use_container_width=True, type="primary"):
+            st.switch_page("pages/settings.py")
 
 
 def render_api_config_tab():
@@ -452,9 +454,12 @@ def handle_save_settings():
 
     # 持久化到 .env 文件
     env_path = _project_root / ".env"
-    chunk_updates = {
+    env_updates = {
         "REVIEW_CHUNK_SIZE": str(st.session_state.chunk_size),
         "REVIEW_CHUNK_OVERLAP": str(st.session_state.chunk_overlap),
+        "ENABLE_INGEST_REVIEW": str(st.session_state.enable_ingest_review).lower(),
+        "ENABLE_RETRIEVAL_FILTER": str(st.session_state.enable_retrieval_filter).lower(),
+        "ENABLE_GENERATION_VALIDATOR": str(st.session_state.enable_generation_validator).lower(),
     }
     try:
         if env_path.exists():
@@ -467,7 +472,7 @@ def handle_save_settings():
         for line in lines:
             stripped = line.strip()
             matched = False
-            for key, value in chunk_updates.items():
+            for key, value in env_updates.items():
                 if stripped.startswith(f"{key}=") and not stripped.startswith("#"):
                     new_lines.append(f"{key}={value}")
                     updated_keys.add(key)
@@ -476,7 +481,7 @@ def handle_save_settings():
             if not matched:
                 new_lines.append(line)
 
-        for key, value in chunk_updates.items():
+        for key, value in env_updates.items():
             if key not in updated_keys:
                 new_lines.append(f"{key}={value}")
 

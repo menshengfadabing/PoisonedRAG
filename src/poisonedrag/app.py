@@ -78,12 +78,23 @@ class ChatApp:
             self._components["vectorstore"] = get_vectorstore(
                 embedding_function=self._components["embedding_model"].embeddings
             )
-            self._components["content_filter"] = get_content_filter(
-                embedding_model=self._components["embedding_model"]
-            )
-            self._components["response_validator"] = get_response_validator(
-                embedding_model=self._components["embedding_model"]
-            )
+
+            # 根据配置创建检索阶段内容过滤器
+            if self.config.enable_retrieval_filter:
+                self._components["content_filter"] = get_content_filter(
+                    embedding_model=self._components["embedding_model"]
+                )
+            else:
+                self._components["content_filter"] = None
+
+            # 根据配置创建生成阶段响应校验器
+            if self.config.enable_generation_validator:
+                self._components["response_validator"] = get_response_validator(
+                    embedding_model=self._components["embedding_model"]
+                )
+            else:
+                self._components["response_validator"] = None
+
             self._components["retriever"] = create_retriever(
                 vectorstore=self._components["vectorstore"],
                 content_filter=self._components["content_filter"],
@@ -131,10 +142,12 @@ def render_sidebar(app: ChatApp):
 
         # === 导航 ===
         st.subheader("📌 导航")
-        if st.button("📥 人工审核", use_container_width=True):
-            st.switch_page("pages/review.py")
+        if st.button("💬 对话", use_container_width=True, type="primary"):
+            st.switch_page("app.py")
         if st.button("📚 知识库管理", use_container_width=True):
             st.switch_page("pages/knowledge_management.py")
+        if st.button("📥 人工审核", use_container_width=True):
+            st.switch_page("pages/review.py")
         if st.button("⚙️ 设置", use_container_width=True):
             st.switch_page("pages/settings.py")
 
