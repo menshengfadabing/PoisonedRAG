@@ -318,5 +318,25 @@
     "source": "linux相关.txt",
     "created_at": "2026-03-17T16:42:20.130874",
     "status": "auto_approved"
+  },
+  {
+    "id": "upload_20260411_145136_1",
+    "content": "netstat -ano | findstr /R /C:\":8080.*LISTENING\" mvn spring-boot:run",
+    "risk_score": 0.5,
+    "risk_type": "需要人工复核",
+    "reason": "有风险，需人工复核",
+    "source": "JAVA相关.txt",
+    "created_at": "2026-04-11T14:51:36.580483",
+    "status": "pending"
+  },
+  {
+    "id": "upload_20260411_145748_5",
+    "content": "# 3 导入清华对应的 GPG 公钥（与官方相同） curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/nodesource/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nodesource.gpg echo \"deb [signed-by=/usr/share/keyrings/nodesource.gpg] \\ https://mirrors.tuna.tsinghua.edu.cn/nodesource/deb_22.x nodistro main\" | \\ sudo tee /etc/apt/sources.list.d/nodesource-tsinghua.list cd /home/no_story/projects/dev-stack docker compose up --build -d ps aux | grep claude kill -9 <PID>",
+    "risk_score": 0.5,
+    "risk_type": "需要人工复核",
+    "reason": "有风险，需人工复核",
+    "source": "linux相关.txt",
+    "created_at": "2026-04-11T14:57:48.739720",
+    "status": "pending"
   }
 ]

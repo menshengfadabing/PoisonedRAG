@@ -99,16 +99,12 @@ def render_api_config_tab():
         st.session_state._edit_deepseek_model = config.deepseek_model
     if "_edit_deepseek_key" not in st.session_state:
         st.session_state._edit_deepseek_key = config.deepseek_api_key
-    if "_edit_embedding_provider" not in st.session_state:
-        st.session_state._edit_embedding_provider = config.embedding_provider
-    if "_edit_dashscope_key" not in st.session_state:
-        st.session_state._edit_dashscope_key = config.dashscope_api_key
-    if "_edit_dashscope_model" not in st.session_state:
-        st.session_state._edit_dashscope_model = config.dashscope_embedding_model
-    if "_edit_ollama_base_url" not in st.session_state:
-        st.session_state._edit_ollama_base_url = config.ollama_base_url
-    if "_edit_ollama_model" not in st.session_state:
-        st.session_state._edit_ollama_model = config.ollama_embedding_model
+    if "_edit_embedding_base_url" not in st.session_state:
+        st.session_state._edit_embedding_base_url = config.embedding_base_url
+    if "_edit_embedding_model" not in st.session_state:
+        st.session_state._edit_embedding_model = config.embedding_model
+    if "_edit_embedding_api_key" not in st.session_state:
+        st.session_state._edit_embedding_api_key = config.embedding_api_key
 
     # LLM 配置
     st.subheader("LLM 配置")
@@ -131,40 +127,45 @@ def render_api_config_tab():
 
     st.markdown("---")
 
-    # Embedding 配置
+    # Embedding 配置（OpenAI 兼容接口）
     st.subheader("Embedding 配置")
-    st.session_state._edit_embedding_provider = st.selectbox(
-        "EMBEDDING_PROVIDER",
-        options=["dashscope", "ollama"],
-        index=0 if st.session_state._edit_embedding_provider == "dashscope" else 1,
-        help="嵌入模型提供商",
+    st.caption("使用 OpenAI 兼容接口，通过 base_url 自由切换服务")
+
+    st.session_state._edit_embedding_base_url = st.text_input(
+        "EMBEDDING_BASE_URL",
+        value=st.session_state._edit_embedding_base_url,
+        help="API 基础地址，如 DashScope 或 Ollama /v1 端点",
+    )
+    st.session_state._edit_embedding_model = st.text_input(
+        "EMBEDDING_MODEL",
+        value=st.session_state._edit_embedding_model,
+        help="嵌入模型名称",
+    )
+    st.session_state._edit_embedding_api_key = st.text_input(
+        "EMBEDDING_API_KEY",
+        value=st.session_state._edit_embedding_api_key,
+        type="password",
+        help="API 密钥（本地服务可留空）",
     )
 
-    # 根据 provider 动态显示对应配置项
-    provider = st.session_state._edit_embedding_provider
-    if provider == "dashscope":
-        st.session_state._edit_dashscope_key = st.text_input(
-            "DASH_SCOPE_API_KEY",
-            value=st.session_state._edit_dashscope_key,
-            type="password",
-            help="DashScope API 密钥（阿里云）",
-        )
-        st.session_state._edit_dashscope_model = st.text_input(
-            "DASHSCOPE_EMBEDDING_MODEL",
-            value=st.session_state._edit_dashscope_model,
-            help="DashScope 嵌入模型名称，默认 text-embedding-v3",
-        )
-    elif provider == "ollama":
-        st.session_state._edit_ollama_base_url = st.text_input(
-            "OLLAMA_BASE_URL",
-            value=st.session_state._edit_ollama_base_url,
-            help="Ollama 服务地址，默认 http://localhost:11434",
-        )
-        st.session_state._edit_ollama_model = st.text_input(
-            "OLLAMA_EMBEDDING_MODEL",
-            value=st.session_state._edit_ollama_model,
-            help="Ollama 嵌入模型名称，如 qwen3-embedding:0.6b",
-        )
+    # 常用预设
+    st.markdown("**常用预设：**")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("DashScope", use_container_width=True):
+            st.session_state._edit_embedding_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            st.session_state._edit_embedding_model = "text-embedding-v3"
+            st.session_state._edit_embedding_api_key = config.dashscope_api_key
+    with col2:
+        if st.button("Ollama 本地", use_container_width=True):
+            st.session_state._edit_embedding_base_url = "http://localhost:11434/v1"
+            st.session_state._edit_embedding_model = "qwen3-embedding:0.6b"
+            st.session_state._edit_embedding_api_key = "ollama"
+    with col3:
+        if st.button("vLLM / LM Studio", use_container_width=True):
+            st.session_state._edit_embedding_base_url = "http://localhost:8000/v1"
+            st.session_state._edit_embedding_model = ""
+            st.session_state._edit_embedding_api_key = ""
 
     st.markdown("---")
 
@@ -199,21 +200,22 @@ def _update_env_file(env_path: Path) -> bool:
             "DEEPSEEK_API_BASE": st.session_state._edit_deepseek_base,
             "DEEPSEEK_MODEL": st.session_state._edit_deepseek_model,
             "DEEPSEEK_API_KEY": st.session_state._edit_deepseek_key,
-            "EMBEDDING_PROVIDER": st.session_state._edit_embedding_provider,
-            "DASH_SCOPE_API_KEY": st.session_state._edit_dashscope_key,
-            "DASHSCOPE_EMBEDDING_MODEL": st.session_state._edit_dashscope_model,
-            "OLLAMA_BASE_URL": st.session_state._edit_ollama_base_url,
-            "OLLAMA_EMBEDDING_MODEL": st.session_state._edit_ollama_model,
+            "EMBEDDING_BASE_URL": st.session_state._edit_embedding_base_url,
+            "EMBEDDING_MODEL": st.session_state._edit_embedding_model,
+            "EMBEDDING_API_KEY": st.session_state._edit_embedding_api_key,
         }
 
-        # 更新已存在的行
+        # 更新已存在的行（同时匹配注释行，避免多个同名列共存）
         new_lines = []
         updated_keys = set()
         for line in lines:
             stripped = line.strip()
             matched = False
             for key, value in updates.items():
-                if stripped.startswith(f"{key}=") and not stripped.startswith("#"):
+                # 匹配 KEY= 或 # KEY= 或 #KEY=
+                if (stripped.startswith(f"{key}=") or
+                    stripped.startswith(f"# {key}=") or
+                    stripped.startswith(f"#{key}=")):
                     new_lines.append(f"{key}={value}")
                     updated_keys.add(key)
                     matched = True

@@ -1,11 +1,10 @@
 """
 嵌入模型模块
 
-支持多种 Embedding Provider：
-- DashScope（阿里云 API）：text-embedding-v3 等
-- Ollama（本地）：qwen3-embedding:0.6b 等
-
-通过配置中的 embedding_provider 选择使用哪个 Provider。
+使用 OpenAI 兼容接口，支持任意 base_url：
+- DashScope（阿里云）：https://dashscope.aliyuncs.com/compatible-mode/v1
+- Ollama 本地：http://localhost:11434/v1（自动使用原生 API）
+- vLLM / LM Studio 等任意 OpenAI 兼容服务
 """
 
 from typing import List, Optional
@@ -19,13 +18,12 @@ class EmbeddingModel:
     """
     嵌入模型封装类
 
-    支持 DashScope（API）和 Ollama（本地）两种 Provider。
-    通过配置中的 embedding_provider 自动选择。
+    自动检测 Ollama 本地服务并使用原生 API，
+    其他情况使用 OpenAI 兼容接口（DashScope / vLLM 等）。
     """
 
     def __init__(
         self,
-        provider: Optional[str] = None,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
@@ -34,61 +32,53 @@ class EmbeddingModel:
         初始化嵌入模型
 
         Args:
-            provider: 嵌入模型提供商（dashscope / ollama），默认从配置读取
-            base_url: Ollama 服务地址（仅 ollama 需要），默认从配置读取
-            model: 嵌入模型名称，默认从配置读取
-            api_key: DashScope API Key（仅 dashscope 需要），默认从配置读取
+            base_url: API 基础地址，默认从配置读取
+            model: 模型名称，默认从配置读取
+            api_key: API Key，默认从配置读取
         """
         config = get_config()
-        self.provider = (provider or config.embedding_provider).lower()
-        self.model_name = model or (
-            config.dashscope_embedding_model
-            if self.provider == "dashscope"
-            else config.ollama_embedding_model
-        )
+        self.base_url = base_url or config.embedding_base_url
+        self.model_name = model or config.embedding_model
+        self.api_key = api_key or config.embedding_api_key
 
-        if self.provider == "dashscope":
-            self._init_dashscope(api_key)
-        elif self.provider == "ollama":
-            self._init_ollama(base_url)
+        # 自动检测服务类型，使用对应的原生 API
+        if "localhost:11434" in self.base_url or "127.0.0.1:11434" in self.base_url:
+            self._init_ollama()
+        elif "dashscope" in self.base_url:
+            self._init_dashscope()
         else:
-            raise ValueError(
-                f"不支持的 embedding provider: {self.provider}，支持: dashscope, ollama"
-            )
+            self._init_openai()
 
-    def _init_dashscope(self, api_key: Optional[str] = None):
-        """初始化 DashScope 嵌入模型"""
-        from langchain_community.embeddings import DashScopeEmbeddings
-
-        key = api_key or self._get_config_value("dashscope_api_key", "")
-        if not key:
-            raise ValueError(
-                "DashScope API Key 未设置。请在 .env 文件中配置 DASH_SCOPE_API_KEY，"
-                "或在配置中传入 api_key 参数。"
-            )
-
-        self._embeddings = DashScopeEmbeddings(
-            model=self.model_name,
-            dashscope_api_key=key,
-        )
-        self.base_url = "https://dashscope.aliyuncs.com"
-
-    def _init_ollama(self, base_url: Optional[str] = None):
-        """初始化 Ollama 本地嵌入模型"""
+    def _init_ollama(self):
+        """初始化 Ollama 本地嵌入模型（使用原生 API）"""
         from langchain_ollama import OllamaEmbeddings
 
-        url = base_url or self._get_config_value("ollama_base_url", "http://localhost:11434")
+        # 提取 host:port 部分
+        url = self.base_url.replace("/v1", "").replace("/api", "")
 
         self._embeddings = OllamaEmbeddings(
             base_url=url,
             model=self.model_name,
         )
-        self.base_url = url
 
-    def _get_config_value(self, key: str, default=None):
-        """从全局配置获取指定值"""
-        config = get_config()
-        return getattr(config, key, default)
+    def _init_dashscope(self):
+        """初始化 DashScope 嵌入模型（使用原生 API）"""
+        from langchain_community.embeddings import DashScopeEmbeddings
+
+        self._embeddings = DashScopeEmbeddings(
+            model=self.model_name,
+            dashscope_api_key=self.api_key,
+        )
+
+    def _init_openai(self):
+        """初始化 OpenAI 兼容的嵌入模型"""
+        from langchain_openai import OpenAIEmbeddings
+
+        self._embeddings = OpenAIEmbeddings(
+            model=self.model_name,
+            openai_api_key=self.api_key,
+            openai_api_base=self.base_url,
+        )
 
     @property
     def embeddings(self) -> Embeddings:
@@ -120,7 +110,7 @@ class EmbeddingModel:
         return self._embeddings.embed_documents(texts)
 
     def __repr__(self) -> str:
-        return f"EmbeddingModel(provider='{self.provider}', model='{self.model_name}')"
+        return f"EmbeddingModel(base_url='{self.base_url}', model='{self.model_name}')"
 
 
 def get_embedding_model() -> EmbeddingModel:

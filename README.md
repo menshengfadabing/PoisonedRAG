@@ -30,8 +30,8 @@ PoisonedRAG 是一个毕业设计项目，实现了具有三阶段防护机制�
 | 组件 | 技术 |
 |------|------|
 | 框架 | LangGraph + LangChain |
-| 对话模型 | DeepSeek API |
-| 嵌入模型 | Ollama (qwen3-embedding:0.6b) |
+| 对话模型 | DeepSeek API / Volcengine Ark |
+| 嵌入模型 | OpenAI 兼容接口（DashScope / Ollama / vLLM 等） |
 | 向量数据库 | ChromaDB |
 | 前端 | Streamlit |
 | 测试框架 | pytest |
@@ -44,7 +44,7 @@ PoisonedRAG 是一个毕业设计项目，实现了具有三阶段防护机制�
 
 - Python 3.13+
 - UV 包管理器
-- Ollama（本地运行嵌入模型）
+- Ollama（可选，本地运行嵌入模型）
 
 ### 安装部署
 
@@ -56,13 +56,7 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-**2. 配置 Ollama：**
-```bash
-ollama pull qwen3-embedding:0.6b
-ollama serve
-```
-
-**3. 配置 API 密钥：**
+**2. 配置 API 密钥：**
 
 复制 `.env.example` 为 `.env` 并填入你的 API 密钥：
 ```bash
@@ -75,13 +69,39 @@ cp .env.example .env
 DEEPSEEK_API_KEY=your-deepseek-api-key
 DEEPSEEK_REVIEW_API_KEY=your-deepseek-review-api-key
 
+# Embedding 模型配置（默认 DashScope，可在设置界面一键切换）
+EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+EMBEDDING_MODEL=text-embedding-v3
+EMBEDDING_API_KEY=your-dashscope-api-key
+
 # LangSmith 配置（可选，用于追踪调试）
 LANGSMITH_API_KEY=your-langsmith-api-key
 ```
 
-> 获取 API 密钥：[DeepSeek](https://platform.deepseek.com/) | [LangSmith](https://smith.langchain.com/)
+> 获取 API 密钥：[DeepSeek](https://platform.deepseek.com/) | [DashScope](https://dashscope.console.aliyun.com/) | [LangSmith](https://smith.langchain.com/)
 
-**4. 启动应用：**
+**2.1（可选）本地 Ollama 嵌入模型：**
+
+如果你想使用本地 Ollama 代替云端 DashScope，可以编辑 `.env` 切换：
+```bash
+# 注释掉 DashScope 配置，启用 Ollama
+# EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+# EMBEDDING_MODEL=text-embedding-v3
+# EMBEDDING_API_KEY=xxx
+
+EMBEDDING_BASE_URL=http://localhost:11434/v1
+EMBEDDING_MODEL=qwen3-embedding:0.6b
+EMBEDDING_API_KEY=ollama
+```
+
+```bash
+ollama pull qwen3-embedding:0.6b
+ollama serve
+```
+
+也可以在应用**设置界面**中点击预设按钮一键切换，无需手动编辑 `.env`。
+
+**3. 启动应用：**
 ```bash
 uv run streamlit run src/poisonedrag/app.py
 ```
@@ -178,17 +198,23 @@ uv run pytest tests/security/test_protection_performance.py -v -s
 PoisonedRAG/
 ├── src/poisonedrag/          # 源代码
 │   ├── config.py             # 配置管理
-│   ├── embeddings.py         # 嵌入模型
+│   ├── embeddings.py         # 嵌入模型（OpenAI 兼容接口）
 │   ├── llm.py                # 对话模型
 │   ├── vectorstore.py        # 向量数据库
 │   ├── rag/                  # RAG 核心模块
 │   ├── security/             # 安全过滤模块
 │   ├── resecurity/           # 文档审查模块
 │   ├── data/                 # 数据管理模块
-│   └── app.py                # Streamlit 应用
+│   ├── pages/                # Streamlit 页面
+│   │   ├── app.py            # 主页（对话）
+│   │   ├── knowledge_management.py  # 知识库管理
+│   │   ├── review.py         # 人工审核
+│   │   ├── settings.py       # 设置
+│   │   └── visualization.py  # 防毒效果可视化
+│   └── app.py                # Streamlit 入口
 ├── data/                     # 数据文件
 │   ├── knowledge/            # 知识库文档
-│   ├── poison/               # 投毒样本（100条）
+│   ├── poison/               # 投毒样本（380+ 条，跨领域）
 │   └── chroma/               # 向量数据库
 ├── docs/                     # 项目文档
 ├── tests/                    # 测试文件
@@ -201,6 +227,8 @@ PoisonedRAG/
 
 - [测试文档](tests/README.md) - 测试方法和预期效果
 - [防护优化过程](docs/防护优化过程.md) - 开发难点与解决方案
+- [方案审查与优化建议](docs/方案审查与优化建议.md) - 三阶段防护评估
+- [可视化展示方案](docs/可视化展示.md) - 防毒效果可视化设计
 
 ---
 

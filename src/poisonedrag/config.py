@@ -123,23 +123,30 @@ class Config:
     review_dynamic_batch: bool = True   # 是否启用动态批次计算
 
     # ============================================================
-    # 嵌入模型配置（支持多种 Provider：dashscope / ollama）
+    # 嵌入模型配置（OpenAI 兼容接口，支持任意 base_url）
     # ============================================================
 
-    # Provider 选择：dashscope（API）或 ollama（本地）
-    embedding_provider: str = field(
-        default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "dashscope")
+    # 嵌入模型基础配置（类似 LLM 配置方式）
+    embedding_base_url: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+    )
+    embedding_model: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
+    )
+    embedding_api_key: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_API_KEY", os.getenv("DASH_SCOPE_API_KEY", ""))
     )
 
-    # DashScope API 配置（阿里云）
+    # 兼容旧配置
     dashscope_api_key: str = field(
         default_factory=lambda: os.getenv("DASH_SCOPE_API_KEY", "")
     )
     dashscope_embedding_model: str = field(
         default_factory=lambda: os.getenv("DASHSCOPE_EMBEDDING_MODEL", "text-embedding-v3")
     )
-
-    # Ollama 嵌入模型配置（本地）
+    embedding_provider: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_PROVIDER", "dashscope")
+    )
     ollama_base_url: str = field(
         default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )

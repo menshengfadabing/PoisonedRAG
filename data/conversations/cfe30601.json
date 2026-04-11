@@ -1,0 +1,101 @@
+{
+  "id": "cfe30601",
+  "title": "毕业论文",
+  "created_at": "2026-04-11 14:09:26",
+  "updated_at": "2026-04-11 14:20:09",
+  "messages": [
+    {
+      "role": "user",
+      "content": "毕业论文",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "您好！关于毕业论文，由于您没有提供具体的上下文信息（比如您的专业、学校要求、目前所处的阶段、遇到的困难等），我无法为您提供针对性的指导。\n\n不过，我可以为您概括性地介绍毕业论文的一般流程和注意事项，希望能对您有所帮助：\n\n### **毕业论文通用流程**\n1. **选题与开题**\n   - 选择与专业相关、有研究价值且力所能及的题目。\n   - 撰写开题报告，明确研究背景、意义、方法和框架。\n\n2. **文献综述**\n   - 查阅相关领域文献，总结前人研究成果，找到研究切入点。\n\n3. **研究设计**\n   - 确定研究方法（如实证分析、案例研究、实验设计等）。\n   - 设计调查问卷、实验方案或数据收集方式。\n\n4. **数据收集与分析**\n   - 执行研究计划，收集数据并进行分析（可使用SPSS、Python等工具）。\n\n5. **论文撰写**\n   - 按学校模板撰写，包括摘要、引言、文献综述、研究方法、结果分析、结论、参考文献等部分。\n\n6. **修改与查重**\n   - 根据导师意见反复修改，确保逻辑清晰、格式规范。\n   - 使用查重系统（如知网、Turnitin）确保符合重复率要求。\n\n7. **答辩准备**\n   - 制作PPT，准备答辩稿，预演可能的问题。\n\n### **常见注意事项**\n- **时间管理**：合理安排各阶段时间，避免后期匆忙。\n- **与导师沟通**：定期向导师汇报进展，及时调整方向。\n- **学术规范**：严禁抄袭，引用需注明出处。\n- **格式要求**：严格遵守学校的排版、字体、引用格式等规定。\n\n### **如果您需要具体帮助，请提供更多信息：**\n- 您的专业或研究方向？\n- 目前处于哪个阶段（选题、写作、修改等）？\n- 遇到了什么具体问题（如选题困难、数据分析、结构梳理等）？\n\n我会根据您提供的信息，尽力为您提供更精准的建议！祝您顺利完成论文！📚✨",
+      "metadata": {
+        "warnings": [
+          "语义异常检测: 相似度分数 0.58",
+          "来源可信度低: 论文翻译1.docx",
+          "语义异常检测: 相似度分数 0.58",
+          "来源可信度低: 论文翻译1.docx",
+          "语义异常检测: 相似度分数 0.56",
+          "来源可信度低: 论文翻译1.docx",
+          "语义异常检测: 相似度分数 0.56",
+          "来源可信度低: 论文翻译1.docx",
+          "检测到敏感关键词: format",
+          "语义异常检测: 相似度分数 0.46",
+          "来源可信度低: 论文翻译1.docx"
+        ],
+        "documents": [],
+        "confidence": 0.6,
+        "is_safe": true
+      }
+    },
+    {
+      "role": "user",
+      "content": "毕业论文",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "您好！我注意到您再次询问“毕业论文”，但根据我目前能看到的**上下文信息**，其中只包含了一篇论文的**参考文献**和**摘要**部分，没有关于您个人毕业论文的具体内容、要求或问题描述。\n\n为了能真正帮助到您，请告诉我一些具体信息，例如：\n\n1. **您目前处于哪个阶段？**\n   - 选题/开题\n   - 文献综述\n   - 数据收集/实验\n   - 写作/修改\n   - 格式调整/查重\n   - 答辩准备\n\n2. **您遇到了什么具体困难？**\n   - 不知道如何选题或确定研究方向\n   - 文献找不到或不会梳理\n   - 研究方法或数据分析遇到问题\n   - 论文结构或写作逻辑不清\n   - 格式调整或降重困难\n   - 答辩PPT或讲稿不知如何准备\n\n3. **您的专业或研究方向是什么？**（例如：计算机、教育学、管理学等）\n\n**例如，您可以这样提问：**\n- “我是计算机专业，正在写‘基于深度学习的代码生成’相关论文，但文献综述部分不知道如何组织，能给我一些建议吗？”\n- “我的论文初稿写完了，但导师说逻辑不清晰，该怎么修改？”\n- “毕业论文的参考文献格式总是调不对，有什么工具或技巧吗？”\n\n请提供更多细节，我会根据您的具体情况，尽力提供有针对性的建议！ 📝✨",
+      "metadata": {
+        "warnings": [],
+        "documents": [
+          {
+            "content": "参考文献",
+            "metadata": {
+              "reviewed": true,
+              "type": "knowledge",
+              "risk_score": 0.0,
+              "source": "论文翻译1.docx",
+              "upload_time": "2026-04-11T14:06:11.536799"
+            }
+          },
+          {
+            "content": "参考文献",
+            "metadata": {
+              "reviewed": true,
+              "risk_score": 0.0,
+              "upload_time": "2026-04-11T14:07:24.487591",
+              "type": "knowledge",
+              "source": "论文翻译1.docx"
+            }
+          },
+          {
+            "content": "摘要",
+            "metadata": {
+              "risk_score": 0.0,
+              "source": "论文翻译1.docx",
+              "type": "knowledge",
+              "upload_time": "2026-04-11T14:05:59.460564",
+              "reviewed": true
+            }
+          },
+          {
+            "content": "摘要",
+            "metadata": {
+              "upload_time": "2026-04-11T14:07:12.009428",
+              "risk_score": 0.0,
+              "source": "论文翻译1.docx",
+              "reviewed": true,
+              "type": "knowledge"
+            }
+          },
+          {
+            "content": "ChangLiu,XinyunChen,EuiChulShin,MingchengChen,andDawnSong.2016.Latentattentionforif-thenprogramsynthesis.AdvancesinNeuralInformationProcessingSystems,29.\nIlyaLoshchilovandFrankHutter.2018.Decoupledweightdecayregularization.InInternationalConferenceonLearningRepresentations.\nAmanMadaan,ShuyanZhou,UriAlon,YimingYang,andGrahamNeubig.2022.Languagemodelsofcodearefew-shotcommonsenselearners.InProceedingsofthe2022ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,pages1384–1403.",
+            "metadata": {
+              "upload_time": "2026-04-11T14:06:15.145036",
+              "risk_score": 0.0,
+              "type": "knowledge",
+              "source": "论文翻译1.docx",
+              "reviewed": true
+            }
+          }
+        ],
+        "confidence": 0.5,
+        "is_safe": true
+      }
+    }
+  ]
+}

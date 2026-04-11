@@ -338,5 +338,35 @@
     "reason": "规则引擎检测: 可疑URL: http://$, 可疑URL: http://172.19.48.1:7897",
     "operator": "user",
     "comment": ""
+  },
+  {
+    "timestamp": "2026-04-11T14:44:54.854130",
+    "doc_id": "upload_20260411_144454_2",
+    "action": "rejected",
+    "risk_score": 0.9,
+    "risk_type": "高风险",
+    "reason": "高风险，拒绝入库",
+    "operator": "system",
+    "comment": "高风险，拒绝入库"
+  },
+  {
+    "timestamp": "2026-04-11T14:46:31.253377",
+    "doc_id": "upload_20260411_144631_1",
+    "action": "rejected",
+    "risk_score": 0.9,
+    "risk_type": "高风险",
+    "reason": "高风险，拒绝入库",
+    "operator": "system",
+    "comment": "高风险，拒绝入库"
+  },
+  {
+    "timestamp": "2026-04-11T14:57:48.739684",
+    "doc_id": "upload_20260411_145748_1",
+    "action": "rejected",
+    "risk_score": 0.9,
+    "risk_type": "高风险",
+    "reason": "高风险，拒绝入库",
+    "operator": "system",
+    "comment": "高风险，拒绝入库"
   }
 ]
