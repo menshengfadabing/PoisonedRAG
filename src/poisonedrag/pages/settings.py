@@ -18,7 +18,7 @@ src_dir = _project_root / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
-from poisonedrag.config import get_config, ProtectionMode
+from poisonedrag.config import get_config, reset_config, ProtectionMode
 from poisonedrag.embeddings import get_embedding_model
 from poisonedrag.llm import get_llm
 from poisonedrag.vectorstore import get_vectorstore
@@ -85,10 +85,16 @@ def render_api_config_tab():
         st.session_state._edit_deepseek_model = config.deepseek_model
     if "_edit_deepseek_key" not in st.session_state:
         st.session_state._edit_deepseek_key = config.deepseek_api_key
-    if "_edit_dashscope_key" not in st.session_state:
-        st.session_state._edit_dashscope_key = config.dashscope_api_key
     if "_edit_embedding_provider" not in st.session_state:
         st.session_state._edit_embedding_provider = config.embedding_provider
+    if "_edit_dashscope_key" not in st.session_state:
+        st.session_state._edit_dashscope_key = config.dashscope_api_key
+    if "_edit_dashscope_model" not in st.session_state:
+        st.session_state._edit_dashscope_model = config.dashscope_embedding_model
+    if "_edit_ollama_base_url" not in st.session_state:
+        st.session_state._edit_ollama_base_url = config.ollama_base_url
+    if "_edit_ollama_model" not in st.session_state:
+        st.session_state._edit_ollama_model = config.ollama_embedding_model
 
     # LLM 配置
     st.subheader("LLM 配置")
@@ -119,12 +125,32 @@ def render_api_config_tab():
         index=0 if st.session_state._edit_embedding_provider == "dashscope" else 1,
         help="嵌入模型提供商",
     )
-    st.session_state._edit_dashscope_key = st.text_input(
-        "DASH_SCOPE_API_KEY",
-        value=st.session_state._edit_dashscope_key,
-        type="password",
-        help="DashScope API 密钥（阿里云）",
-    )
+
+    # 根据 provider 动态显示对应配置项
+    provider = st.session_state._edit_embedding_provider
+    if provider == "dashscope":
+        st.session_state._edit_dashscope_key = st.text_input(
+            "DASH_SCOPE_API_KEY",
+            value=st.session_state._edit_dashscope_key,
+            type="password",
+            help="DashScope API 密钥（阿里云）",
+        )
+        st.session_state._edit_dashscope_model = st.text_input(
+            "DASHSCOPE_EMBEDDING_MODEL",
+            value=st.session_state._edit_dashscope_model,
+            help="DashScope 嵌入模型名称，默认 text-embedding-v3",
+        )
+    elif provider == "ollama":
+        st.session_state._edit_ollama_base_url = st.text_input(
+            "OLLAMA_BASE_URL",
+            value=st.session_state._edit_ollama_base_url,
+            help="Ollama 服务地址，默认 http://localhost:11434",
+        )
+        st.session_state._edit_ollama_model = st.text_input(
+            "OLLAMA_EMBEDDING_MODEL",
+            value=st.session_state._edit_ollama_model,
+            help="Ollama 嵌入模型名称，如 qwen3-embedding:0.6b",
+        )
 
     st.markdown("---")
 
@@ -161,6 +187,9 @@ def _update_env_file(env_path: Path) -> bool:
             "DEEPSEEK_API_KEY": st.session_state._edit_deepseek_key,
             "EMBEDDING_PROVIDER": st.session_state._edit_embedding_provider,
             "DASH_SCOPE_API_KEY": st.session_state._edit_dashscope_key,
+            "DASHSCOPE_EMBEDDING_MODEL": st.session_state._edit_dashscope_model,
+            "OLLAMA_BASE_URL": st.session_state._edit_ollama_base_url,
+            "OLLAMA_EMBEDDING_MODEL": st.session_state._edit_ollama_model,
         }
 
         # 更新已存在的行
@@ -190,6 +219,9 @@ def _update_env_file(env_path: Path) -> bool:
         import importlib
         from dotenv import load_dotenv
         load_dotenv(env_path, override=True)
+
+        # 重置 Config 单例，使新 API Key 立即生效
+        reset_config()
 
         return True
 

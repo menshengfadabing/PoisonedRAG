@@ -2,6 +2,7 @@
 知识库数据管理模块
 
 管理正常知识库，支持从文件加载文档、添加到向量存储。
+支持格式：PDF, Word(.docx), PowerPoint(.pptx), Markdown, JSON, TXT
 """
 
 import os
@@ -13,6 +14,14 @@ from langchain_core.documents import Document
 
 from ..vectorstore import VectorStore
 from ..embeddings import EmbeddingModel, get_embedding_model
+from .document_loader import (
+    load_file,
+    load_directory as _load_directory,
+    load_json,
+    load_markdown,
+    load_text,
+    SUPPORTED_EXTENSIONS,
+)
 
 
 class KnowledgeBase:
@@ -197,7 +206,7 @@ class KnowledgeBase:
         recursive: bool = True,
     ) -> List[Document]:
         """
-        从目录加载所有文档
+        从目录加载所有支持的文档（PDF/DOCX/PPTX/MD/JSON/TXT）
 
         Args:
             directory: 目录路径，默认使用 data_dir
@@ -207,34 +216,11 @@ class KnowledgeBase:
             文档列表
         """
         directory = directory or self.data_dir
-        documents = []
 
         if not os.path.exists(directory):
-            return documents
+            return []
 
-        for root, dirs, files in os.walk(directory):
-            if not recursive and root != directory:
-                continue
-
-            for file in files:
-                file_path = os.path.join(root, file)
-
-                try:
-                    if file.endswith('.json'):
-                        docs = self.load_from_json(file_path)
-                    elif file.endswith('.md'):
-                        docs = self.load_from_markdown(file_path)
-                    elif file.endswith('.txt'):
-                        docs = self.load_from_text(file_path)
-                    else:
-                        continue
-
-                    documents.extend(docs)
-
-                except Exception as e:
-                    print(f"加载文件 {file_path} 失败: {e}")
-
-        return documents
+        return _load_directory(directory, recursive=recursive)
 
     def add_document(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> str:
         """

@@ -131,13 +131,17 @@ class Config:
     dashscope_api_key: str = field(
         default_factory=lambda: os.getenv("DASH_SCOPE_API_KEY", "")
     )
-    dashscope_embedding_model: str = "text-embedding-v3"  # 推荐小模型，支持 50+ 语言，可调维度
+    dashscope_embedding_model: str = field(
+        default_factory=lambda: os.getenv("DASHSCOPE_EMBEDDING_MODEL", "text-embedding-v3")
+    )
 
     # Ollama 嵌入模型配置（本地）
     ollama_base_url: str = field(
         default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )
-    ollama_embedding_model: str = "qwen3-embedding:0.6b"
+    ollama_embedding_model: str = field(
+        default_factory=lambda: os.getenv("OLLAMA_EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+    )
 
     # 向量数据库配置
     chroma_persist_directory: str = field(
