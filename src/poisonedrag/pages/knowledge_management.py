@@ -81,6 +81,136 @@ def init_session_state():
     if "index_progress" not in st.session_state:
         st.session_state.index_progress = None
 
+    # 审查进度持久化（防止切换页面丢失）
+    if "review_state" not in st.session_state:
+        st.session_state.review_state = None
+
+
+def _process_review_results(all_chunks, all_results):
+    """
+    处理审查结果：分类、入库、更新队列和日志。
+    可被主上传流程和恢复流程共用。
+    """
+    qm = st.session_state.review_queue_manager
+    pass_docs = []
+    review_count = 0
+    fail_count = 0
+    fail_details = []
+    review_items = []
+
+    for i, result in enumerate(all_results):
+        chunk_text, source_file = all_chunks[i]
+        status = "p" if result.risk_score < 0.2 else "r" if result.risk_score < 0.8 else "f"
+
+        if status == "p":
+            doc = Document(
+                page_content=chunk_text,
+                metadata={
+                    "source": source_file,
+                    "type": "knowledge",
+                    "reviewed": True,
+                    "risk_score": result.risk_score,
+                    "upload_time": datetime.now().isoformat(),
+                }
+            )
+            pass_docs.append(doc)
+
+        elif status == "r":
+            review_count += 1
+            doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
+            queued_doc = QueuedDocument(
+                id=doc_id,
+                content=chunk_text,
+                risk_score=result.risk_score,
+                risk_type=result.risk_type,
+                reason=result.reason,
+                source=source_file,
+                created_at=datetime.now().isoformat(),
+                status=ReviewStatus.PENDING,
+            )
+            qm._queue.append(queued_doc)
+            review_items.append(queued_doc)
+
+        else:  # f
+            fail_count += 1
+            fail_details.append({
+                "source": source_file,
+                "chunk_id": i,
+                "content_preview": chunk_text[:100],
+                "status": "fail",
+                "reason": result.reason,
+            })
+            doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
+            qm._logs.append(ReviewLog(
+                timestamp=datetime.now().isoformat(),
+                doc_id=doc_id,
+                action="rejected",
+                risk_score=result.risk_score,
+                risk_type=result.risk_type,
+                reason=result.reason,
+                operator="system",
+                comment="高风险，拒绝入库",
+            ))
+
+    # 批量入库（带进度条）
+    pass_count = len(pass_docs)
+    if pass_docs:
+        st.markdown("---")
+        st.subheader("📥 入库进度")
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
+        embed_batch_size = 20
+        total_batches = (pass_count + embed_batch_size - 1) // embed_batch_size
+
+        for batch_idx in range(0, pass_count, embed_batch_size):
+            batch = pass_docs[batch_idx:batch_idx + embed_batch_size]
+            batch_num = batch_idx // embed_batch_size + 1
+            status_text.info(
+                f"⏳ 正在向量化第 {batch_num}/{total_batches} 批 "
+                f"({batch_idx + 1}-{min(batch_idx + embed_batch_size, pass_count)}/{pass_count})..."
+            )
+            try:
+                vectorstore.add_documents(batch)
+            except Exception as e:
+                st.error(f"批量入库失败: {e}")
+            progress_bar.progress(min(1.0, (batch_idx + embed_batch_size) / pass_count))
+
+        progress_bar.progress(1.0)
+        status_text.success(f"✅ 全部 {pass_count} 篇文档已入库")
+
+    # 保存队列和日志
+    qm._save_queue()
+    qm._save_logs()
+
+    # 缓存结果
+    st.session_state.upload_results = {
+        "pass_count": pass_count,
+        "review_count": review_count,
+        "fail_count": fail_count,
+        "review_items": review_items,
+        "fail_details": fail_details,
+        "total_chunks": len(all_chunks),
+        "results": [
+            {
+                "chunk_id": i,
+                "source": all_chunks[i][1],
+                "content": all_chunks[i][0],
+                "status": "p" if r.risk_score < 0.2 else "r" if r.risk_score < 0.8 else "f",
+                "risk_score": r.risk_score,
+                "risk_type": r.risk_type,
+                "reason": r.reason,
+            }
+            for i, r in enumerate(all_results)
+        ],
+    }
+
+    # 清除审查进度（已完成）
+    st.session_state.review_state = None
+
+    # 自动刷新页面
+    st.rerun()
+
 
 def get_document_reviewer() -> DocumentReviewer:
     """获取文档审查器"""
@@ -95,9 +225,11 @@ def batch_review_stream(
     reviewer: DocumentReviewer,
     chunks: list[str],
     batch_size: int = 20,
+    state_key: str = "review_state",
 ) -> list[ChunkReviewResult]:
     """
     批量审查，带流式输出展示。
+    每完成一批就保存进度到 session_state，防止切换页面丢失。
     返回 ChunkReviewResult 列表。
     """
     llm = reviewer.llm
@@ -108,7 +240,7 @@ def batch_review_stream(
             for i, c in enumerate(chunks)
         ]
 
-    all_results = []
+    total_batches = (len(chunks) + batch_size - 1) // batch_size
     try:
         status_placeholder = st.empty()
         raw_display = st.empty()
@@ -116,7 +248,8 @@ def batch_review_stream(
         status_placeholder = None
         raw_display = None
 
-    for batch_start in range(0, len(chunks), batch_size):
+    all_results = []
+    for batch_idx, batch_start in enumerate(range(0, len(chunks), batch_size)):
         batch = chunks[batch_start:batch_start + batch_size]
         chunks_text = "\n---\n".join(
             f"[{i+1}] {c[:reviewer.doc_max_length]}"
@@ -142,8 +275,8 @@ def batch_review_stream(
                 raw_response += content
                 if status_placeholder is not None:
                     status_placeholder.info(
-                        f"⏳ 正在审查第 {batch_start // batch_size + 1} 批 "
-                        f"({batch_start + 1}-{min(batch_start + batch_size, len(chunks))} 号) — "
+                        f"⏳ 正在审查第 {batch_idx + 1}/{total_batches} 批 "
+                        f"({batch_start + 1}-{min(batch_start + batch_size, len(chunks))}/{len(chunks)} 号) — "
                         f"已接收 {len(raw_response)} 字符..."
                     )
                 if raw_display is not None:
@@ -155,10 +288,32 @@ def batch_review_stream(
         batch_results = _parse_batch_response(raw_response, batch, batch_start)
         all_results.extend(batch_results)
 
+        # 每完成一批就保存进度
+        completed = len(all_results)
+        st.session_state[state_key] = {
+            "status": "in_progress",
+            "total_chunks": len(chunks),
+            "completed_chunks": completed,
+            "total_batches": total_batches,
+            "completed_batches": batch_idx + 1,
+            "results": all_results,
+        }
+
     if status_placeholder is not None:
         status_placeholder.empty()
     if raw_display is not None:
         raw_display.empty()
+
+    # 审查完成，标记状态
+    st.session_state[state_key] = {
+        "status": "complete",
+        "total_chunks": len(chunks),
+        "completed_chunks": len(all_results),
+        "total_batches": total_batches,
+        "completed_batches": total_batches,
+        "results": all_results,
+    }
+
     return all_results
 
 
@@ -302,6 +457,41 @@ with tab_upload:
     | ❌ **fail** | 高风险 | 拒绝入库 |
     """)
 
+    # 检查是否有未完成的审查进度（防止切换页面丢失）
+    review_state = st.session_state.review_state
+    if review_state and review_state.get("status") == "in_progress":
+        completed = review_state.get("completed_batches", 0)
+        total = review_state.get("total_batches", 0)
+        total_chunks = review_state.get("total_chunks", 0)
+        st.warning(
+            f"⚠️ 检测到上次审查中断：已完成 **{completed}/{total}** 批（共 **{total_chunks}** 条语料）"
+        )
+        if st.button("🔄 从上次中断处继续审查", type="primary", use_container_width=True):
+            # 继续从上次中断处审查
+            reviewer = get_document_reviewer()
+            all_chunks = review_state["all_chunks"]
+            completed_chunks = review_state.get("completed_chunks", 0)
+
+            # 跳过已完成的批次
+            batch_size = reviewer.batch_size if hasattr(reviewer, 'batch_size') else 20
+            remaining_chunks = all_chunks[completed_chunks:]
+            remaining_texts = [c[0] for c in remaining_chunks]
+
+            st.subheader("🔍 继续审查进度")
+            remaining_results = batch_review_stream(
+                reviewer, remaining_texts, batch_size=batch_size
+            )
+
+            # 合并结果
+            all_results = review_state.get("results", []) + remaining_results
+
+            # 继续处理后续流程（入库等）
+            _process_review_results(all_chunks, all_results)
+        if st.button("🗑️ 放弃进度，重新开始", use_container_width=True):
+            st.session_state.review_state = None
+            st.rerun()
+        st.markdown("---")
+
     uploaded_files = st.file_uploader(
         "选择文件（支持 .txt / .md / .json / .pdf / .docx / .pptx，可多选）",
         type=["txt", "md", "json", "pdf", "docx", "pptx"],
@@ -376,6 +566,17 @@ with tab_upload:
             else:
                 config = get_config()
 
+                # 保存 chunks 到 session_state，防止切换页面丢失
+                st.session_state.review_state = {
+                    "status": "starting",
+                    "total_chunks": len(all_chunks),
+                    "completed_chunks": 0,
+                    "total_batches": 0,
+                    "completed_batches": 0,
+                    "results": [],
+                    "all_chunks": all_chunks,  # (content, source) 列表
+                }
+
                 # 根据入库审查开关决定是否调用 LLM 审查
                 if config.enable_ingest_review:
                     # 2. 批量审查（带流式输出）
@@ -398,127 +599,8 @@ with tab_upload:
                         for i, c in enumerate(all_chunks)
                     ]
 
-                # 3. 分类结果
-                pass_docs = []
-                review_count = 0
-                fail_count = 0
-                fail_details = []
-                review_items = []
-
-                for i, result in enumerate(all_results):
-                    chunk_text, source_file = all_chunks[i]
-                    status = "p" if result.risk_score < 0.2 else "r" if result.risk_score < 0.8 else "f"
-
-                    if status == "p":
-                        doc = Document(
-                            page_content=chunk_text,
-                            metadata={
-                                "source": source_file,
-                                "type": "knowledge",
-                                "reviewed": True,
-                                "risk_score": result.risk_score,
-                                "upload_time": datetime.now().isoformat(),
-                            }
-                        )
-                        pass_docs.append(doc)
-
-                    elif status == "r":
-                        review_count += 1
-                        doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
-                        from poisonedrag.resecurity.review_queue_manager import (
-                            QueuedDocument,
-                        )
-                        queued_doc = QueuedDocument(
-                            id=doc_id,
-                            content=chunk_text,
-                            risk_score=result.risk_score,
-                            risk_type=result.risk_type,
-                            reason=result.reason,
-                            source=source_file,
-                            created_at=datetime.now().isoformat(),
-                            status=ReviewStatus.PENDING,
-                        )
-                        qm._queue.append(queued_doc)
-                        review_items.append(queued_doc)
-
-                    else:  # f
-                        fail_count += 1
-                        fail_details.append({
-                            "source": source_file,
-                            "chunk_id": i,
-                            "content_preview": chunk_text[:100],
-                            "status": "fail",
-                            "reason": result.reason,
-                        })
-                        doc_id = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}"
-                        from poisonedrag.resecurity.review_queue_manager import ReviewLog
-                        qm._logs.append(ReviewLog(
-                            timestamp=datetime.now().isoformat(),
-                            doc_id=doc_id,
-                            action="rejected",
-                            risk_score=result.risk_score,
-                            risk_type=result.risk_type,
-                            reason=result.reason,
-                            operator="system",
-                            comment="高风险，拒绝入库",
-                        ))
-
-                # 4. 批量入库（带进度条）
-                pass_count = len(pass_docs)
-                if pass_docs:
-                    st.markdown("---")
-                    st.subheader("📥 入库进度")
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-
-                    # 分批入库（DashScope 批量嵌入更快）
-                    embed_batch_size = 20
-                    total_batches = (pass_count + embed_batch_size - 1) // embed_batch_size
-
-                    for batch_idx in range(0, pass_count, embed_batch_size):
-                        batch = pass_docs[batch_idx:batch_idx + embed_batch_size]
-                        batch_num = batch_idx // embed_batch_size + 1
-                        status_text.info(
-                            f"⏳ 正在向量化第 {batch_num}/{total_batches} 批 "
-                            f"({batch_idx + 1}-{min(batch_idx + embed_batch_size, pass_count)}/{pass_count})..."
-                        )
-                        try:
-                            vectorstore.add_documents(batch)
-                        except Exception as e:
-                            st.error(f"批量入库失败: {e}")
-                        progress_bar.progress(min(1.0, (batch_idx + embed_batch_size) / pass_count))
-
-                    progress_bar.progress(1.0)
-                    status_text.success(f"✅ 全部 {pass_count} 篇文档已入库")
-
-                # 5. 保存队列和日志
-                qm._save_queue()
-                qm._save_logs()
-
-                # 缓存结果
-                st.session_state.upload_results = {
-                    "pass_count": pass_count,
-                    "review_count": review_count,
-                    "fail_count": fail_count,
-                    "review_items": review_items,
-                    "fail_details": fail_details,
-                    "total_chunks": len(all_chunks),
-                    "results": [
-                        {
-                            "chunk_id": i,
-                            "source": all_chunks[i][1],
-                            "content": all_chunks[i][0],
-                            "status": "p" if r.risk_score < 0.2 else "r" if r.risk_score < 0.8 else "f",
-                            "risk_score": r.risk_score,
-                            "risk_type": r.risk_type,
-                            "reason": r.reason,
-                        }
-                        for i, r in enumerate(all_results)
-                    ],
-                }
-
-                # 自动刷新页面，更新文档数量和文档列表
-                st.rerun()
+                # 3. 处理审查结果（分类、入库、更新队列）
+                _process_review_results(all_chunks, all_results)
 
         # 显示审查结果
         results = st.session_state.upload_results

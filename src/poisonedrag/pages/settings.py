@@ -52,7 +52,9 @@ def init_session_state():
 
     if "review_max_batch_size" not in st.session_state:
         config = get_config()
-        st.session_state.review_max_batch_size = config.review_max_batch_size
+        # 根据上下文窗口和语料长度动态计算推荐值
+        recommended = config.calculate_max_batch_size(config.review_doc_chunk_size)
+        st.session_state.review_max_batch_size = recommended
 
     if "chunk_size" not in st.session_state:
         config = get_config()
@@ -379,6 +381,19 @@ def render_review_strategy_tab():
 
     # 批次大小配置
     st.subheader("审查批次配置")
+
+    # 显示动态推荐值
+    config = get_config()
+    recommended = config.calculate_max_batch_size(
+        st.session_state.chunk_size if "chunk_size" in st.session_state else config.review_doc_chunk_size
+    )
+    st.info(
+        f"💡 **推荐批次大小: {recommended}** — 基于当前上下文窗口 "
+        f"({config.llm_context_window:,} tokens) 和语料分割大小 "
+        f"({st.session_state.chunk_size if 'chunk_size' in st.session_state else config.review_doc_chunk_size} 字符) 动态计算。"
+        f"建议不超过此值，避免超出 LLM 上下文窗口。"
+    )
+
     col1, col2 = st.columns(2)
     with col1:
         st.session_state.review_min_batch_size = st.number_input(
@@ -390,11 +405,11 @@ def render_review_strategy_tab():
         )
     with col2:
         st.session_state.review_max_batch_size = st.number_input(
-            "最大批次大小",
+            "最大批次大小（单批语料上限）",
             min_value=st.session_state.review_min_batch_size,
-            max_value=1000,
+            max_value=5000,
             value=st.session_state.review_max_batch_size,
-            help="每次审查的最大文档数量",
+            help=f"每次审查的最大文档数量。推荐值: {recommended}",
         )
 
     st.markdown("---")
